@@ -1,0 +1,29 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+    tags:
+      - 'v*'  # Trigger the workflow on push to tags like v1.0, v20.15.10
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4.1.1
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zlib1g-dev libelf-dev
+    - name: Build
+      run: cargo build --release --verbose
+    - name: Upload binary
+      uses: actions/upload-artifact@v4.3.1
+      with:
+        name: bpftop
+        path: target/release/bpftop
