@@ -31,12 +31,13 @@ pub struct BpfProgram {
 }
 
 impl BpfProgram {
-    pub fn average_runtime(&self) -> u64 {
-        if self.run_cnt == 0 {
+
+    pub fn average_runtime_delta(&self) -> u64 {
+        if self.run_cnt_delta() == 0 {
             return 0;
         }
 
-        self.run_time_ns / self.run_cnt
+        self.runtime_delta() / self.run_cnt_delta()
     }
 
     pub fn runtime_delta(&self) -> u64 {
@@ -73,7 +74,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_average_runtime() {
+    fn test_average_runtime_delta() {
         let prog = BpfProgram {
             id: "test".to_string(),
             bpf_type: "test".to_string(),
@@ -86,7 +87,7 @@ mod tests {
             timestamp_ns: 2000,
             num_cpus: 4,
         };
-        assert_eq!(prog.average_runtime(), 100);
+        assert_eq!(prog.average_runtime_delta(), 100);
     }
 
     #[test]

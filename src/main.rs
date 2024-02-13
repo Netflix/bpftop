@@ -48,7 +48,7 @@ impl From<&BpfProgram> for Row<'_> {
             Cell::from(bpf_program.id.to_string()),
             Cell::from(bpf_program.bpf_type.to_string()),
             Cell::from(bpf_program.name.to_string()),
-            Cell::from(bpf_program.average_runtime().to_string()),
+            Cell::from(bpf_program.average_runtime_delta().to_string()),
             Cell::from(bpf_program.events_per_second().to_string()),
             Cell::from(round_to_first_non_zero(bpf_program.cpu_time_percent()).to_string()),
         ];
