@@ -21,9 +21,9 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y zlib1g-dev libelf-dev
     - name: Test
-      run: cargo test --verbose
+      run: cargo test
     - name: Build
-      run: cargo build --release --verbose
+      run: cargo build --release
     - name: Upload binary
       uses: actions/upload-artifact@v4.3.1
       with:
