@@ -202,7 +202,7 @@ fn ui(f: &mut Frame, app: &mut App) {
         "Period Avg Runtime (ns)",
         "Total Avg Runtime (ns)",
         "Events per second",
-        "CPU %",
+        "Total CPU %",
     ]
     .iter()
     .map(|h| Cell::from(*h).style(Style::default()));

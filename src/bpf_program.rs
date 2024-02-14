@@ -73,7 +73,7 @@ impl BpfProgram {
         if self.run_time_ns == 0 {
             return 0.0;
         }
-        (self.runtime_delta() as f64 / self.num_cpus as f64) / self.timestamp_delta() as f64 * 100.0
+        self.runtime_delta() as f64 / self.timestamp_delta() as f64 * 100.0
     }
 }
 
@@ -197,8 +197,8 @@ mod tests {
             timestamp_ns: 2000,
             num_cpus: 4,
         };
-        // Calculate expected value: ((200 - 100) / 4) / (2000 - 1000) * 100 = 2.5
-        let expected = 2.5;
+        // Calculate expected value: (200 - 100) / (2000 - 1000) * 100 = 10.0
+        let expected = 10.0;
         assert_eq!(prog.cpu_time_percent(), expected);
     }
 }
