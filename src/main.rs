@@ -20,7 +20,7 @@ use std::fs::File;
 use std::io;
 use std::os::fd::FromRawFd;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 use std::{println, thread, vec};
 use std::collections::HashMap;
 
@@ -84,14 +84,14 @@ impl App {
 
             let iter = ProgInfoIter::default();
             for prog in iter {
-                let timestamp_ns = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos();
+                let instant = Instant::now();
 
                 let prog_name = prog.name.to_str().unwrap().to_string();
 
                 if prog_name.is_empty() {
                     continue;
                 }
-
+                
                 let mut bpf_program = BpfProgram {
                     id: prog.id.to_string(),
                     bpf_type: prog.ty.to_string(),
@@ -100,14 +100,14 @@ impl App {
                     run_time_ns: prog.run_time_ns,
                     prev_run_cnt: 0,
                     run_cnt: prog.run_cnt,
-                    prev_timestamp_ns: 0,
-                    timestamp_ns,
+                    instant,
+                    period_ns: 0,
                 };
 
                 if let Some(prev_bpf_program) = map.get(&bpf_program.id) {
                     bpf_program.prev_runtime_ns = prev_bpf_program.run_time_ns;
                     bpf_program.prev_run_cnt = prev_bpf_program.run_cnt;
-                    bpf_program.prev_timestamp_ns = prev_bpf_program.timestamp_ns;
+                    bpf_program.period_ns = prev_bpf_program.instant.elapsed().as_nanos();
                 }
 
                 items.push(bpf_program);
