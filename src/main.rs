@@ -84,14 +84,13 @@ impl App {
 
             let iter = ProgInfoIter::default();
             for prog in iter {
+                let timestamp_ns = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos();
+
                 let prog_name = prog.name.to_str().unwrap().to_string();
 
                 if prog_name.is_empty() {
                     continue;
                 }
-
-                let duration_since_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
-                let timestamp_nanos = duration_since_epoch.as_nanos();
 
                 let mut bpf_program = BpfProgram {
                     id: prog.id.to_string(),
@@ -102,8 +101,8 @@ impl App {
                     prev_run_cnt: 0,
                     run_cnt: prog.run_cnt,
                     prev_timestamp_ns: 0,
-                    timestamp_ns: timestamp_nanos,
-                    num_cpus: num_cpus
+                    timestamp_ns,
+                    num_cpus
                 };
 
                 if let Some(prev_bpf_program) = map.get(&bpf_program.id) {
