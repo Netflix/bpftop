@@ -48,7 +48,8 @@ impl From<&BpfProgram> for Row<'_> {
             Cell::from(bpf_program.id.to_string()),
             Cell::from(bpf_program.bpf_type.to_string()),
             Cell::from(bpf_program.name.to_string()),
-            Cell::from(bpf_program.average_runtime_delta().to_string()),
+            Cell::from(bpf_program.period_average_runtime_ns().to_string()),
+            Cell::from(bpf_program.total_average_runtime_ns().to_string()),
             Cell::from(bpf_program.events_per_second().to_string()),
             Cell::from(round_to_first_non_zero(bpf_program.cpu_time_percent()).to_string()),
         ];
@@ -198,7 +199,8 @@ fn ui(f: &mut Frame, app: &mut App) {
         "ID",
         "Type",
         "Name",
-        "Avg Runtime (ns)",
+        "Period Avg Runtime (ns)",
+        "Total Avg Runtime (ns)",
         "Events per second",
         "CPU %",
     ]
@@ -214,12 +216,13 @@ fn ui(f: &mut Frame, app: &mut App) {
     let rows: Vec<Row> = items.iter().map(|item| item.into()).collect();
 
     let widths = [
-        Constraint::Percentage(15),
-        Constraint::Percentage(25),
-        Constraint::Percentage(15),
-        Constraint::Percentage(15),
-        Constraint::Percentage(15),
-        Constraint::Percentage(15),
+        Constraint::Percentage(5),
+        Constraint::Percentage(17),
+        Constraint::Percentage(17),
+        Constraint::Percentage(17),
+        Constraint::Percentage(17),
+        Constraint::Percentage(17),
+        Constraint::Percentage(10),
     ];
 
     let t = Table::new(rows, widths)
