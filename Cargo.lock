@@ -62,7 +62,6 @@ dependencies = [
  "libbpf-rs",
  "libbpf-sys",
  "nix",
- "num_cpus",
  "ratatui",
  "regex",
 ]

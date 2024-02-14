@@ -71,7 +71,7 @@ impl App {
         }
     }
 
-    pub fn start_background_thread(&self, num_cpus: usize) {
+    pub fn start_background_thread(&self) {
         let items_clone = Arc::clone(&self.items);
 
         thread::spawn(move || loop {
@@ -102,7 +102,6 @@ impl App {
                     run_cnt: prog.run_cnt,
                     prev_timestamp_ns: 0,
                     timestamp_ns,
-                    num_cpus
                 };
 
                 if let Some(prev_bpf_program) = map.get(&bpf_program.id) {
@@ -145,11 +144,9 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-    let num_cpus = num_cpus::get();
-
     // create app and run it
     let app = App::new();
-    app.start_background_thread(num_cpus);
+    app.start_background_thread();
     let res = run_app(&mut terminal, app);
 
     // // restore terminal

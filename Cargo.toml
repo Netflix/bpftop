@@ -11,7 +11,6 @@ regex = "1.8.1"
 anyhow = "1.0.71"
 ratatui = { version = "0.26.1", default-features = false, features = ['crossterm'] }
 nix = "0.27.1"
-num_cpus = "1.16.0"
 
 [profile.release]
 debug = false

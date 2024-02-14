@@ -27,7 +27,6 @@ pub struct BpfProgram {
     pub run_cnt: u64,
     pub prev_timestamp_ns: u128,
     pub timestamp_ns: u128,
-    pub num_cpus: usize,
 }
 
 impl BpfProgram {
@@ -93,7 +92,6 @@ mod tests {
             run_cnt: 2,
             prev_timestamp_ns: 1000,
             timestamp_ns: 2000,
-            num_cpus: 4,
         };
         assert_eq!(prog.period_average_runtime_ns(), 100);
     }
@@ -110,7 +108,6 @@ mod tests {
             run_cnt: 5,
             prev_timestamp_ns: 1000,
             timestamp_ns: 2000,
-            num_cpus: 4,
         };
         assert_eq!(prog.total_average_runtime_ns(), 200);
     }
@@ -127,7 +124,6 @@ mod tests {
             run_cnt: 2,
             prev_timestamp_ns: 1000,
             timestamp_ns: 2000,
-            num_cpus: 4,
         };
         assert_eq!(prog.runtime_delta(), 100);
     }
@@ -144,7 +140,6 @@ mod tests {
             run_cnt: 8,
             prev_timestamp_ns: 1000,
             timestamp_ns: 2000,
-            num_cpus: 4,
         };
         assert_eq!(prog.run_cnt_delta(), 3);
     }
@@ -161,7 +156,6 @@ mod tests {
             run_cnt: 2,
             prev_timestamp_ns: 1000,
             timestamp_ns: 3000,
-            num_cpus: 4,
         };
         assert_eq!(prog.timestamp_delta(), 2000);
     }
@@ -178,7 +172,6 @@ mod tests {
             run_cnt: 50,
             prev_timestamp_ns: 1_000_000_000,
             timestamp_ns: 2_000_000_000,
-            num_cpus: 4,
         };
         assert_eq!(prog.events_per_second(), 40);
     }
@@ -195,7 +188,6 @@ mod tests {
             run_cnt: 2,
             prev_timestamp_ns: 1000,
             timestamp_ns: 2000,
-            num_cpus: 4,
         };
         // Calculate expected value: (200 - 100) / (2000 - 1000) * 100 = 10.0
         let expected = 10.0;
