@@ -12,8 +12,10 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build_and_test:
+  build_test_and_release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v4.1.1
     - name: Install dependencies
@@ -24,21 +26,11 @@ jobs:
       run: cargo test
     - name: Build
       run: cargo build --release
-    - uses: actions/upload-artifact@v4.3.1
-      with:
-        name: bpftop
-        path: target/release/bpftop
-
-  create_release:
-    needs: build_and_test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    if: startsWith(github.ref, 'refs/tags/v')
-    steps:
-    - uses: actions/checkout@v4.1.1
-    - name: Create Release and Upload Asset
+    - name: Create Release and Upload Artficat
       uses: ncipollo/release-action@v1.14.0
+      if: startsWith(github.ref, 'refs/tags/v')
       with:
         artifacts: "target/release/bpftop"
         draft: true
+        allowUpdates: true
+        updateOnlyUnreleased: true
