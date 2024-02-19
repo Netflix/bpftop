@@ -1,6 +1,6 @@
 # bpftop
 
-`bpftop` provides a dynamic real-time view of running eBPF programs. It displays the average runtime, events per second, and estimated total CPU % for each program. This tool minimizes overhead by enabling performance statistics only while it is active.
+`bpftop` provides a dynamic real-time view of running eBPF programs. It displays the average runtime, events per second, and estimated total CPU % for each program. It also provides graphical views of these statistics over time. This tool minimizes overhead by enabling performance statistics only while it is active.
 
 ![bpftop](https://github.com/Netflix/bpftop/blob/main/bpftop.gif?raw=true)
 
@@ -17,6 +17,7 @@ curl -fLJO https://github.com/Netflix/bpftop/releases/latest/download/bpftop
 - Displays a list of all running eBPF programs on the host, including the ID, type, and name
 - Shows the period and total average runtime for each eBPF program.
 - Calculates the events per second and estimated CPU utilization for each eBPF program
+- Provides a graphical view of the average runtime, events per second, and estimated CPU utilization over a 10-second time period
 - Dynamically updates the list every second
 - Enables the statistics-gathering function only while it is active
 
