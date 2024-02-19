@@ -15,7 +15,6 @@
  *  limitations under the License.
  *
  */
-
 use std::time::Instant;
 
 #[derive(Clone)]
@@ -32,7 +31,6 @@ pub struct BpfProgram {
 }
 
 impl BpfProgram {
-
     pub fn period_average_runtime_ns(&self) -> u64 {
         if self.run_cnt_delta() == 0 {
             return 0;
@@ -40,7 +38,7 @@ impl BpfProgram {
 
         self.runtime_delta() / self.run_cnt_delta()
     }
-    
+
     pub fn total_average_runtime_ns(&self) -> u64 {
         if self.run_cnt == 0 {
             return 0;

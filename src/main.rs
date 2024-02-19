@@ -15,16 +15,15 @@
  *  limitations under the License.
  *
  */
-
+use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use std::os::fd::FromRawFd;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use std::{println, thread, vec};
-use std::collections::HashMap;
+use std::thread;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use bpf_program::BpfProgram;
 use crossterm::event::{self, poll, Event, KeyCode, KeyModifiers};
 use crossterm::execute;
@@ -60,14 +59,14 @@ impl From<&BpfProgram> for Row<'_> {
 
 struct App {
     state: TableState,
-    items: Arc<Mutex<Vec<BpfProgram>>>
+    items: Arc<Mutex<Vec<BpfProgram>>>,
 }
 
 impl App {
     fn new() -> App {
         App {
             state: TableState::default(),
-            items: Arc::new(Mutex::new(vec![]))
+            items: Arc::new(Mutex::new(vec![])),
         }
     }
 
@@ -79,7 +78,10 @@ impl App {
             let mut items = items_clone.lock().unwrap();
 
             let items_copy = items.clone();
-            let map: HashMap<String, &BpfProgram> = items_copy.iter().map(|prog| (prog.id.clone(), prog)).collect();
+            let map: HashMap<String, &BpfProgram> = items_copy
+                .iter()
+                .map(|prog| (prog.id.clone(), prog))
+                .collect();
             items.clear();
 
             let iter = ProgInfoIter::default();
@@ -91,7 +93,7 @@ impl App {
                 if prog_name.is_empty() {
                     continue;
                 }
-                
+
                 let mut bpf_program = BpfProgram {
                     id: prog.id.to_string(),
                     bpf_type: prog.ty.to_string(),
@@ -123,15 +125,13 @@ impl App {
 
 fn main() -> Result<()> {
     if !running_as_root() {
-        println!("You must run bpftop as root");
-        std::process::exit(1);
+        return Err(anyhow!("This program must be run as root"));
     }
 
     // enable BPF stats while the program is running
     let fd = unsafe { bpf_enable_stats(libbpf_sys::BPF_STATS_RUN_TIME) };
     if fd < 0 {
-        println!("Failed to enable BPF_STATS_RUN_TIME");
-        std::process::exit(1);
+        return Err(anyhow!("Failed to enable BPF stats"));
     }
     // The fd will be closed when _file goes out of scope at the end of main.
     let _file = unsafe { File::from_raw_fd(fd) };
@@ -153,16 +153,16 @@ fn main() -> Result<()> {
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
     terminal.show_cursor()?;
-
-    if let Err(err) = res {
-        println!("{:?}", err)
-    }
     terminal.clear()?;
+
+    if res.is_err() {
+        return res;
+    }
 
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<()> {
     loop {
         terminal.draw(|f| ui(f, &mut app))?;
 
