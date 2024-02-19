@@ -30,13 +30,20 @@ use crossterm::terminal::{
 };
 use libbpf_sys::bpf_enable_stats;
 use ratatui::backend::{Backend, CrosstermBackend};
-use ratatui::layout::{Constraint, Layout};
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, Borders, Cell, Row, Table};
-use ratatui::{Frame, Terminal};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::{Color, Modifier, Style, Stylize};
+use ratatui::text::Line;
+use ratatui::widgets::{
+    Axis, Block, BorderType, Borders, Cell, Chart, Dataset, GraphType, Padding, Paragraph, Row,
+    Table,
+};
+use ratatui::{symbols, Frame, Terminal};
 
 mod app;
 mod bpf_program;
+
+const TABLE_FOOTER: &str = "(q) quit | (↑) move up | (↓) move down | (↵) show graphs";
+const GRAPHS_FOOTER: &str = "(q) quit | (↵) show program list";
 
 impl From<&BpfProgram> for Row<'_> {
     fn from(bpf_program: &BpfProgram) -> Self {
@@ -48,7 +55,7 @@ impl From<&BpfProgram> for Row<'_> {
             Cell::from(bpf_program.period_average_runtime_ns().to_string()),
             Cell::from(bpf_program.total_average_runtime_ns().to_string()),
             Cell::from(bpf_program.events_per_second().to_string()),
-            Cell::from(round_to_first_non_zero(bpf_program.cpu_time_percent()).to_string()),
+            Cell::from(format_percent(bpf_program.cpu_time_percent())),
         ];
 
         Row::new(cells).height(height as u16).bottom_margin(1)
@@ -99,11 +106,28 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
         terminal.draw(|f| ui(f, &mut app))?;
 
         // wait up to 100ms for a keyboard event
-        if poll(Duration::from_millis(100))? {
+        if poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
+                    KeyCode::Down => {
+                        if !app.show_graphs {
+                            app.next()
+                        }
+                    }
+                    KeyCode::Up => {
+                        if !app.show_graphs {
+                            app.previous()
+                        }
+                    }
+                    KeyCode::Enter => app.toggle_graphs(),
                     KeyCode::Char('q') => return Ok(()),
-                    KeyCode::Esc => return Ok(()),
+                    KeyCode::Esc => {
+                        if app.show_graphs {
+                            app.toggle_graphs()
+                        } else {
+                            return Ok(());
+                        }
+                    }
                     _ => {}
                 }
                 match (key.modifiers, key.code) {
@@ -116,11 +140,220 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
 }
 
 fn ui(f: &mut Frame, app: &mut App) {
-    let rects = Layout::default()
-        .constraints([Constraint::Percentage(100)].as_ref())
-        .margin(3)
-        .split(f.size());
+    let rects = Layout::vertical([Constraint::Min(5), Constraint::Length(3)]).split(f.size());
 
+    if app.show_graphs {
+        render_graphs(f, app, rects[0]);
+    } else {
+        render_table(f, app, rects[0]);
+    }
+    render_footer(f, app, rects[1]);
+}
+
+fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
+    let data_buf = app.data_buf.lock().unwrap();
+    let mut cpu_data: Vec<(f64, f64)> = vec![(0.0, 0.0); data_buf.len()];
+    let mut eps_data: Vec<(f64, f64)> = vec![(0.0, 0.0); data_buf.len()];
+    let mut runtime_data: Vec<(f64, f64)> = vec![(0.0, 0.0); data_buf.len()];
+
+    let mut total_cpu = 0.0;
+    let mut total_eps = 0;
+    let mut total_runtime = 0;
+
+    let mut moving_max_cpu = 0.0;
+    let mut moving_max_eps = 0;
+    let mut moving_max_runtime = 0;
+
+    for (i, val) in data_buf.iter().enumerate() {
+        cpu_data[i] = (i as f64, val.cpu_time_percent);
+        eps_data[i] = (i as f64, val.events_per_sec as f64);
+        runtime_data[i] = (i as f64, val.average_runtime_ns as f64);
+
+        if val.cpu_time_percent > app.max_cpu {
+            app.max_cpu = val.cpu_time_percent;
+        }
+        if val.cpu_time_percent > moving_max_cpu {
+            moving_max_cpu = val.cpu_time_percent;
+        }
+
+        if val.events_per_sec > app.max_eps {
+            app.max_eps = val.events_per_sec;
+        }
+        if val.events_per_sec > moving_max_eps {
+            moving_max_eps = val.events_per_sec;
+        }
+
+        if val.average_runtime_ns > app.max_runtime {
+            app.max_runtime = val.average_runtime_ns;
+        }
+        if val.average_runtime_ns > moving_max_runtime {
+            moving_max_runtime = val.average_runtime_ns;
+        }
+
+        total_cpu += val.cpu_time_percent;
+        total_eps += val.events_per_sec;
+        total_runtime += val.average_runtime_ns;
+    }
+
+    let max_cpu = moving_max_cpu as f64;
+    let max_eps = moving_max_eps as f64;
+    let max_runtime = moving_max_runtime as f64;
+    let avg_cpu = total_cpu / data_buf.len() as f64;
+    let avg_eps = total_eps as f64 / data_buf.len() as f64;
+    let avg_runtime = total_runtime as f64 / data_buf.len() as f64;
+
+    let cpu_y_max = app.max_cpu.ceil();
+    let eps_y_max = (app.max_eps as f64 * 2.0).ceil();
+    let runtime_y_max = (app.max_runtime as f64 * 2.0).ceil();
+
+    // CPU
+    let cpu_dataset = Dataset::default()
+        .marker(symbols::Marker::Braille)
+        .graph_type(GraphType::Line)
+        .style(Style::default().green())
+        .data(&cpu_data);
+    let cpu_datasets = vec![cpu_dataset];
+    let x_axis = Axis::default()
+        .style(Style::default().white())
+        .bounds([0.0, cpu_data.len() as f64]);
+    let y_axis = Axis::default()
+        .style(Style::default().white())
+        .bounds([0.0, cpu_y_max])
+        .labels(vec![
+            "0%".into(),
+            ((cpu_y_max / 2.0).to_string() + "%").into(),
+            (cpu_y_max.to_string() + "%").into(),
+        ]);
+    let cpu_chart = Chart::new(cpu_datasets)
+        .block(
+            Block::default()
+                .title(format!(
+                    " Total CPU % | Moving Avg: {} | Max: {}",
+                    format_percent(avg_cpu),
+                    format_percent(max_cpu)
+                ))
+                .borders(Borders::ALL),
+        )
+        .x_axis(x_axis)
+        .y_axis(y_axis);
+
+    // Events per second
+    let eps_dataset = Dataset::default()
+        .marker(symbols::Marker::Braille)
+        .graph_type(GraphType::Line)
+        .style(Style::default().blue())
+        .data(&eps_data);
+    let eps_datasets = vec![eps_dataset];
+    let x_axis = Axis::default()
+        .style(Style::default().white())
+        .bounds([0.0, eps_data.len() as f64]);
+    let y_axis = Axis::default()
+        .style(Style::default().white())
+        .bounds([0.0, eps_y_max])
+        .labels(vec![
+            "0".into(),
+            ((eps_y_max / 2.0).to_string()).into(),
+            (eps_y_max.to_string()).into(),
+        ]);
+    let eps_chart = Chart::new(eps_datasets)
+        .block(
+            Block::default()
+                .title(format!(
+                    " Events per second | Moving Avg: {} | Max: {}",
+                    avg_eps.ceil(),
+                    max_eps.ceil()
+                ))
+                .borders(Borders::ALL),
+        )
+        .x_axis(x_axis)
+        .y_axis(y_axis);
+
+    // Runtime
+    let runtime_dataset = Dataset::default()
+        .marker(symbols::Marker::Braille)
+        .graph_type(GraphType::Line)
+        .style(Style::default().magenta())
+        .data(&runtime_data);
+    let runtime_datasets = vec![runtime_dataset];
+    let x_axis = Axis::default()
+        .style(Style::default().white())
+        .bounds([0.0, runtime_data.len() as f64]);
+    let y_axis = Axis::default()
+        .style(Style::default().white())
+        .bounds([0.0, runtime_y_max])
+        .labels(vec![
+            "0".into(),
+            ((runtime_y_max / 2.0).to_string()).into(),
+            (runtime_y_max.to_string()).into(),
+        ]);
+    let runtime_chart = Chart::new(runtime_datasets)
+        .block(
+            Block::default()
+                .title(format!(
+                    " Avg Runtime (ns) | Moving Avg: {} | Max: {}",
+                    avg_runtime.ceil(),
+                    max_runtime.ceil()
+                ))
+                .borders(Borders::ALL),
+        )
+        .x_axis(x_axis)
+        .y_axis(y_axis);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .split(area);
+
+    let sub_chunks = chunks
+        .iter()
+        .map(|chunk| {
+            Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+                .split(*chunk)
+        })
+        .collect::<Vec<_>>();
+
+    let mut items = vec![
+        Row::new(vec![Cell::from("Program ID"), Cell::from("Unknown")]),
+        Row::new(vec![Cell::from("Program Type"), Cell::from("Unknown")]),
+        Row::new(vec![Cell::from("Program Name"), Cell::from("Unknown")]),
+    ];
+    let widths = [Constraint::Length(15), Constraint::Min(0)];
+
+    if let Some(bpf_program) = app.selected_program() {
+        items = vec![
+            Row::new(vec![
+                Cell::from("Program ID".bold()),
+                Cell::from(bpf_program.id),
+            ]).height(2),
+            Row::new(vec![
+                Cell::from("Program Type".bold()),
+                Cell::from(bpf_program.bpf_type),
+            ]).height(2),
+            Row::new(vec![
+                Cell::from("Program Name".bold()),
+                Cell::from(bpf_program.name),
+            ]).height(2),
+        ];
+    }
+
+    let table = Table::new(items, widths)
+        .block(
+            Block::default()
+                .title(" Program Information ")
+                .padding(Padding::new(3, 0, 1, 0))
+                .borders(Borders::ALL),
+        )
+        .style(Style::default().fg(Color::White));
+
+    f.render_widget(table, sub_chunks[0][0]); // Top left
+    f.render_widget(cpu_chart.clone(), sub_chunks[0][1]); // Top right
+    f.render_widget(eps_chart, sub_chunks[1][0]); // Bottom left
+    f.render_widget(runtime_chart, sub_chunks[1][1]); // Bottom right
+}
+
+fn render_table(f: &mut Frame, app: &mut App, area: Rect) {
     let selected_style = Style::default().add_modifier(Modifier::REVERSED);
     let normal_style = Style::default().bg(Color::Blue);
     let header_cells = [
@@ -162,13 +395,35 @@ fn ui(f: &mut Frame, app: &mut App) {
         )
         .highlight_style(selected_style)
         .highlight_symbol(">> ");
-    f.render_stateful_widget(t, rects[0], &mut app.state);
+    f.render_stateful_widget(t, area, &mut app.state.lock().unwrap());
+}
+
+fn render_footer(f: &mut Frame, app: &mut App, area: Rect) {
+    let footer_text = if app.show_graphs {
+        GRAPHS_FOOTER
+    } else {
+        TABLE_FOOTER
+    };
+    let info_footer = Paragraph::new(Line::from(footer_text)).centered().block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Double),
+    );
+    f.render_widget(info_footer, area);
 }
 
 fn running_as_root() -> bool {
     match nix::unistd::getuid().as_raw() {
         0 => true,
         _ => false,
+    }
+}
+
+fn format_percent(num: f64) -> String {
+    if num < 1.0 {
+        round_to_first_non_zero(num).to_string() + "%"
+    } else {
+        format!("{:.2}%", num)
     }
 }
 

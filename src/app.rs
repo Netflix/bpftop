@@ -22,30 +22,51 @@ use std::{
     time::{Duration, Instant},
 };
 
+use circular_buffer::CircularBuffer;
 use libbpf_rs::query::ProgInfoIter;
 use ratatui::widgets::TableState;
 
 use crate::bpf_program::BpfProgram;
 
 pub struct App {
-    pub state: TableState,
+    pub state: Arc<Mutex<TableState>>,
     pub items: Arc<Mutex<Vec<BpfProgram>>>,
+    pub data_buf: Arc<Mutex<CircularBuffer<20, PeriodMeasure>>>,
+    pub show_graphs: bool,
+    pub max_cpu: f64,
+    pub max_eps: i64,
+    pub max_runtime: u64,
+}
+
+pub struct PeriodMeasure {
+    pub cpu_time_percent: f64,
+    pub events_per_sec: i64,
+    pub average_runtime_ns: u64,
 }
 
 impl App {
     pub fn new() -> App {
         App {
-            state: TableState::default(),
+            state: Arc::new(Mutex::new(TableState::default())),
             items: Arc::new(Mutex::new(vec![])),
+            data_buf: Arc::new(Mutex::new(CircularBuffer::<20, PeriodMeasure>::new())),
+            show_graphs: false,
+            max_cpu: 0.0,
+            max_eps: 0,
+            max_runtime: 0,
         }
     }
 
     pub fn start_background_thread(&self) {
-        let items_clone = Arc::clone(&self.items);
+        let items = Arc::clone(&self.items);
+        let data_buf = Arc::clone(&self.data_buf);
+        let state = Arc::clone(&self.state);
 
         thread::spawn(move || loop {
             // Lock items for this thread's exclusive use.
-            let mut items = items_clone.lock().unwrap();
+            let mut items = items.lock().unwrap();
+            let mut data_buf = data_buf.lock().unwrap();
+            let state = state.lock().unwrap();
 
             let items_copy = items.clone();
             let map: HashMap<String, &BpfProgram> = items_copy
@@ -85,10 +106,73 @@ impl App {
                 items.push(bpf_program);
             }
 
+            if let Some(index) = state.selected() {
+                let bpf_program = &items[index];
+                data_buf.push_back(PeriodMeasure {
+                    cpu_time_percent: bpf_program.cpu_time_percent(),
+                    events_per_sec: bpf_program.events_per_second(),
+                    average_runtime_ns: bpf_program.period_average_runtime_ns(),
+                });
+            }
+
             // Explicitly drop the MutexGuard returned by lock() to unlock before sleeping.
             drop(items);
+            drop(data_buf);
+            drop(state);
 
             thread::sleep(Duration::from_secs(1));
         });
+    }
+
+    pub fn toggle_graphs(&mut self) {
+        self.data_buf.lock().unwrap().clear();
+        self.max_cpu = 0.0;
+        self.max_eps = 0;
+        self.max_runtime = 0;
+        self.show_graphs = !self.show_graphs;
+    }
+
+    pub fn selected_program(&self) -> Option<BpfProgram> {
+        let items = self.items.lock().unwrap().clone();
+        let state = self.state.lock().unwrap();
+
+        match state.selected() {
+            Some(i) => Some(items[i].clone()),
+            None => None,
+        }
+    }
+
+    pub fn next(&mut self) {
+        let items = self.items.lock().unwrap().clone();
+        let mut state = self.state.lock().unwrap();
+
+        let i = match state.selected() {
+            Some(i) => {
+                if i >= items.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        state.select(Some(i));
+    }
+
+    pub fn previous(&mut self) {
+        let items = self.items.lock().unwrap().clone();
+        let mut state = self.state.lock().unwrap();
+
+        let i = match state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    items.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        state.select(Some(i));
     }
 }
