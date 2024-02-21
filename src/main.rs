@@ -241,7 +241,7 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
     let eps_dataset = Dataset::default()
         .marker(symbols::Marker::Braille)
         .graph_type(GraphType::Line)
-        .style(Style::default().blue())
+        .style(Style::default().cyan())
         .data(&eps_data);
     let eps_datasets = vec![eps_dataset];
     let x_axis = Axis::default()
