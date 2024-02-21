@@ -133,7 +133,7 @@ impl App {
     }
 
     pub fn selected_program(&self) -> Option<BpfProgram> {
-        let items = self.items.lock().unwrap().clone();
+        let items = self.items.lock().unwrap();
         let state = self.state.lock().unwrap();
 
         match state.selected() {
@@ -142,8 +142,8 @@ impl App {
         }
     }
 
-    pub fn next(&mut self) {
-        let items = self.items.lock().unwrap().clone();
+    pub fn next_program(&mut self) {
+        let items = self.items.lock().unwrap();
         let mut state = self.state.lock().unwrap();
 
         let i = match state.selected() {
@@ -159,8 +159,8 @@ impl App {
         state.select(Some(i));
     }
 
-    pub fn previous(&mut self) {
-        let items = self.items.lock().unwrap().clone();
+    pub fn previous_program(&mut self) {
+        let items = self.items.lock().unwrap();
         let mut state = self.state.lock().unwrap();
 
         let i = match state.selected() {
@@ -171,8 +171,141 @@ impl App {
                     i - 1
                 }
             }
-            None => 0,
+            None => items.len() - 1,
         };
         state.select(Some(i));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_next_program() {
+        let mut app = App::new();
+        let prog_1 = BpfProgram{
+            id: "1".to_string(),
+            bpf_type: "test".to_string(),
+            name: "test".to_string(),
+            prev_runtime_ns: 100,
+            run_time_ns: 200,
+            prev_run_cnt: 1,
+            run_cnt: 2,
+            instant: Instant::now(),
+            period_ns: 0,
+        };
+
+        let prog_2 = BpfProgram{
+            id: "2".to_string(),
+            bpf_type: "test".to_string(),
+            name: "test".to_string(),
+            prev_runtime_ns: 100,
+            run_time_ns: 200,
+            prev_run_cnt: 1,
+            run_cnt: 2,
+            instant: Instant::now(),
+            period_ns: 0,
+        };
+
+        // Add some dummy BpfPrograms to the items vector
+        app.items.lock().unwrap().push(prog_1.clone());
+        app.items.lock().unwrap().push(prog_2.clone());
+
+        // Initially no item is selected
+        assert_eq!(app.selected_program(), None);
+
+        // After calling next, the first item should be selected
+        app.next_program();
+        assert_eq!(app.selected_program(), Some(prog_1.clone()));
+
+        // After calling next again, the second item should be selected
+        app.next_program();
+        assert_eq!(app.selected_program(), Some(prog_2.clone()));
+
+        // After calling next again, we should wrap around to the first item
+        app.next_program();
+        assert_eq!(app.selected_program(), Some(prog_1.clone()));
+    }
+
+    #[test]
+    fn test_previous_program() {
+        let mut app = App::new();
+        let prog_1 = BpfProgram{
+            id: "1".to_string(),
+            bpf_type: "test".to_string(),
+            name: "test".to_string(),
+            prev_runtime_ns: 100,
+            run_time_ns: 200,
+            prev_run_cnt: 1,
+            run_cnt: 2,
+            instant: Instant::now(),
+            period_ns: 0,
+        };
+
+        let prog_2 = BpfProgram{
+            id: "2".to_string(),
+            bpf_type: "test".to_string(),
+            name: "test".to_string(),
+            prev_runtime_ns: 100,
+            run_time_ns: 200,
+            prev_run_cnt: 1,
+            run_cnt: 2,
+            instant: Instant::now(),
+            period_ns: 0,
+        };
+
+        // Add some dummy BpfPrograms to the items vector
+        app.items.lock().unwrap().push(prog_1.clone());
+        app.items.lock().unwrap().push(prog_2.clone());
+
+        // Initially no item is selected
+        assert_eq!(app.selected_program(), None);
+
+        // After calling previous, the last item should be selected
+        app.previous_program();
+        assert_eq!(app.selected_program(), Some(prog_2.clone()));
+
+        // After calling previous again, the first item should be selected
+        app.previous_program();
+        assert_eq!(app.selected_program(), Some(prog_1.clone()));
+
+        // After calling previous again, we should wrap around to the last item
+        app.previous_program();
+        assert_eq!(app.selected_program(), Some(prog_2.clone()));
+    }
+
+    #[test]
+    fn test_toggle_graphs() {
+        let mut app = App::new();
+
+        // Initially, show_graphs is false
+        assert_eq!(app.show_graphs, false);
+
+        // After calling toggle_graphs, show_graphs should be true
+        app.toggle_graphs();
+        assert_eq!(app.show_graphs, true);
+
+        // Set max_cpu, max_eps, and max_runtime to non-zero values
+        app.max_cpu = 10.0;
+        app.max_eps = 5;
+        app.max_runtime = 100;
+        app.data_buf.lock().unwrap().push_back(PeriodMeasure {
+            cpu_time_percent: 10.0,
+            events_per_sec: 5,
+            average_runtime_ns: 100,
+        });
+
+        // After calling toggle_graphs, show_graphs should be false again
+        app.toggle_graphs();
+        assert_eq!(app.show_graphs, false);
+
+        // max_cpu, max_eps, and max_runtime should be reset to 0
+        assert_eq!(app.max_cpu, 0.0);
+        assert_eq!(app.max_eps, 0);
+        assert_eq!(app.max_runtime, 0);
+
+        // and data_buf should be empty again
+        assert!(app.data_buf.lock().unwrap().is_empty());
     }
 }

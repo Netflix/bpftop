@@ -17,7 +17,7 @@
  */
 use std::time::Instant;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BpfProgram {
     pub id: String,
     pub bpf_type: String,
@@ -28,6 +28,12 @@ pub struct BpfProgram {
     pub run_cnt: u64,
     pub instant: Instant,
     pub period_ns: u128,
+}
+
+impl PartialEq for BpfProgram {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
 }
 
 impl BpfProgram {
@@ -75,6 +81,36 @@ impl BpfProgram {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_partial_eq() {
+        let prog_1 = BpfProgram {
+            id: "1".to_string(),
+            bpf_type: "test".to_string(),
+            name: "test".to_string(),
+            prev_runtime_ns: 100,
+            run_time_ns: 200,
+            prev_run_cnt: 1,
+            run_cnt: 2,
+            instant: Instant::now(),
+            period_ns: 0,
+        };
+
+        let prog_2 = BpfProgram {
+            id: "2".to_string(),
+            bpf_type: "test".to_string(),
+            name: "test".to_string(),
+            prev_runtime_ns: 100,
+            run_time_ns: 200,
+            prev_run_cnt: 1,
+            run_cnt: 2,
+            instant: Instant::now(),
+            period_ns: 0,
+        };
+
+        assert_eq!(prog_1, prog_1);
+        assert_ne!(prog_1, prog_2);
+    }
 
     #[test]
     fn test_period_average_runtime_ns() {

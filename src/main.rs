@@ -111,12 +111,12 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                 match key.code {
                     KeyCode::Down => {
                         if !app.show_graphs {
-                            app.next()
+                            app.next_program()
                         }
                     }
                     KeyCode::Up => {
                         if !app.show_graphs {
-                            app.previous()
+                            app.previous_program()
                         }
                     }
                     KeyCode::Enter => app.toggle_graphs(),
