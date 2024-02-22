@@ -11,7 +11,7 @@
 To download the latest release of `bpftop`, use the following command:
 
 ```bash
-curl -fLJO https://github.com/Netflix/bpftop/releases/latest/download/bpftop
+curl -fLJ https://github.com/Netflix/bpftop/releases/latest/download/bpftop -o bpftop && chmod +x bpftop
 ```
 
 ## Features
