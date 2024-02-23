@@ -63,23 +63,22 @@ impl App {
         let state = Arc::clone(&self.state);
 
         thread::spawn(move || loop {
-            // Lock items for this thread's exclusive use.
-            let mut items = items.lock().unwrap();
-            let mut data_buf = data_buf.lock().unwrap();
-            let state = state.lock().unwrap();
+            let loop_start = Instant::now();
 
-            let items_copy = items.clone();
-            let map: HashMap<String, &BpfProgram> = items_copy
-                .iter()
+            let mut items = items.lock().unwrap();
+            let map: HashMap<String, BpfProgram> = items
+                .drain(..)
                 .map(|prog| (prog.id.clone(), prog))
                 .collect();
-            items.clear();
 
             let iter = ProgInfoIter::default();
             for prog in iter {
                 let instant = Instant::now();
 
-                let prog_name = prog.name.to_str().unwrap().to_string();
+                let prog_name = match prog.name.to_str() {
+                    Ok(name) => name.to_string(),
+                    Err(_) => continue,
+                };
 
                 if prog_name.is_empty() {
                     continue;
@@ -106,6 +105,8 @@ impl App {
                 items.push(bpf_program);
             }
 
+            let state = state.lock().unwrap();
+            let mut data_buf = data_buf.lock().unwrap();
             if let Some(index) = state.selected() {
                 let bpf_program = &items[index];
                 data_buf.push_back(PeriodMeasure {
@@ -115,12 +116,19 @@ impl App {
                 });
             }
 
-            // Explicitly drop the MutexGuard returned by lock() to unlock before sleeping.
+            // Explicitly drop the MutexGuards to unlock before sleeping.
             drop(items);
             drop(data_buf);
             drop(state);
 
-            thread::sleep(Duration::from_secs(1));
+            // Adjust sleep duration to maintain a 1-second sample period, accounting for loop processing time.
+            let elapsed = loop_start.elapsed();
+            let sleep = if elapsed > Duration::from_secs(1) {
+                Duration::from_secs(1)
+            } else {
+                Duration::from_secs(1) - elapsed
+            };
+            thread::sleep(sleep);
         });
     }
 
@@ -184,7 +192,7 @@ mod tests {
     #[test]
     fn test_next_program() {
         let mut app = App::new();
-        let prog_1 = BpfProgram{
+        let prog_1 = BpfProgram {
             id: "1".to_string(),
             bpf_type: "test".to_string(),
             name: "test".to_string(),
@@ -196,7 +204,7 @@ mod tests {
             period_ns: 0,
         };
 
-        let prog_2 = BpfProgram{
+        let prog_2 = BpfProgram {
             id: "2".to_string(),
             bpf_type: "test".to_string(),
             name: "test".to_string(),
@@ -231,7 +239,7 @@ mod tests {
     #[test]
     fn test_previous_program() {
         let mut app = App::new();
-        let prog_1 = BpfProgram{
+        let prog_1 = BpfProgram {
             id: "1".to_string(),
             bpf_type: "test".to_string(),
             name: "test".to_string(),
@@ -243,7 +251,7 @@ mod tests {
             period_ns: 0,
         };
 
-        let prog_2 = BpfProgram{
+        let prog_2 = BpfProgram {
             id: "2".to_string(),
             bpf_type: "test".to_string(),
             name: "test".to_string(),

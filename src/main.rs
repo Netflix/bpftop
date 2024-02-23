@@ -43,6 +43,15 @@ mod bpf_program;
 
 const TABLE_FOOTER: &str = "(q) quit | (↑) move up | (↓) move down | (↵) show graphs";
 const GRAPHS_FOOTER: &str = "(q) quit | (↵) show program list";
+const HEADER_COLS: [&str; 7] = [
+    "ID",
+    "Type",
+    "Name",
+    "Period Avg Runtime (ns)",
+    "Total Avg Runtime (ns)",
+    "Events per second",
+    "Total CPU %",
+];
 
 impl From<&BpfProgram> for Row<'_> {
     fn from(bpf_program: &BpfProgram) -> Self {
@@ -356,18 +365,7 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
 fn render_table(f: &mut Frame, app: &mut App, area: Rect) {
     let selected_style = Style::default().add_modifier(Modifier::REVERSED);
     let normal_style = Style::default().bg(Color::Blue);
-    let header_cells = [
-        "ID",
-        "Type",
-        "Name",
-        "Period Avg Runtime (ns)",
-        "Total Avg Runtime (ns)",
-        "Events per second",
-        "Total CPU %",
-    ]
-    .iter()
-    .map(|h| Cell::from(*h).style(Style::default()));
-    let header = Row::new(header_cells)
+    let header = Row::new(HEADER_COLS)
         .style(normal_style)
         .height(1)
         .bottom_margin(1);
