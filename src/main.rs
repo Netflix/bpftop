@@ -15,9 +15,8 @@
  *  limitations under the License.
  *
  */
-use std::fs::File;
 use std::io;
-use std::os::fd::FromRawFd;
+use std::os::fd::{FromRawFd, OwnedFd};
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
@@ -67,13 +66,14 @@ fn main() -> Result<()> {
         return Err(anyhow!("This program must be run as root"));
     }
 
-    // enable BPF stats while the program is running
+    // Try to enable BPF stats
     let fd = unsafe { bpf_enable_stats(libbpf_sys::BPF_STATS_RUN_TIME) };
     if fd < 0 {
         return Err(anyhow!("Failed to enable BPF stats"));
     }
-    // The fd will be closed when _file goes out of scope at the end of main.
-    let _file = unsafe { File::from_raw_fd(fd) };
+    // The file descriptor will be closed when `_owned_fd` goes out of scope.
+    // This guarantees that BPF stats will be disabled when the program exits.
+    let _owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };
 
     // setup terminal
     enable_raw_mode()?;
@@ -88,7 +88,7 @@ fn main() -> Result<()> {
     app.start_background_thread();
     let res = run_draw_loop(&mut terminal, app);
 
-    // // restore terminal
+    // restore terminal
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
     terminal.show_cursor()?;
