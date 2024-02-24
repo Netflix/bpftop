@@ -105,9 +105,16 @@ impl App {
                 items.push(bpf_program);
             }
 
-            let state = state.lock().unwrap();
+            let mut state = state.lock().unwrap();
             let mut data_buf = data_buf.lock().unwrap();
             if let Some(index) = state.selected() {
+                // If the selected index is out of bounds, unselect it.
+                // This can happen if a program exits while it's selected.
+                if index >= items.len() {
+                    state.select(None);
+                    continue;
+                }
+
                 let bpf_program = &items[index];
                 data_buf.push_back(PeriodMeasure {
                     cpu_time_percent: bpf_program.cpu_time_percent(),
