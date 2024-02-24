@@ -46,7 +46,7 @@ checksum = "ed570934406eb16438a4e976b1b4500774099c13b8cb96eec99f620f05090ddf"
 
 [[package]]
 name = "bpftop"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "circular-buffer",
