@@ -151,6 +151,12 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
 fn ui(f: &mut Frame, app: &mut App) {
     let rects = Layout::vertical([Constraint::Min(5), Constraint::Length(3)]).split(f.size());
 
+    // This can happen when the program exists while the user is viewing the graphs.
+    // In this case, we want to switch back to the table view.
+    if app.selected_program().is_none() && app.show_graphs {
+        app.show_graphs = false;
+    }
+
     if app.show_graphs {
         render_graphs(f, app, rects[0]);
     } else {
