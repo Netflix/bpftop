@@ -156,45 +156,58 @@ impl App {
             None => None,
         }
     }
-
     pub fn next_program(&mut self) {
         let items = self.items.lock().unwrap();
-        let mut state = self.state.lock().unwrap();
-
-        let i = match state.selected() {
-            Some(i) => {
-                if i >= items.len() - 1 {
-                    0
-                } else {
-                    i + 1
+        if items.len() > 0 {
+            let mut state = self.state.lock().unwrap();
+            let i = match state.selected() {
+                Some(i) => {
+                    if i >= items.len() - 1 {
+                        0
+                    } else {
+                        i + 1
+                    }
                 }
-            }
-            None => 0,
-        };
-        state.select(Some(i));
+                None => 0,
+            };
+            state.select(Some(i));
+        }
     }
 
     pub fn previous_program(&mut self) {
         let items = self.items.lock().unwrap();
-        let mut state = self.state.lock().unwrap();
-
-        let i = match state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    items.len() - 1
-                } else {
-                    i - 1
+        if items.len() > 0 {
+            let mut state = self.state.lock().unwrap();
+            let i = match state.selected() {
+                Some(i) => {
+                    if i == 0 {
+                        items.len() - 1
+                    } else {
+                        i - 1
+                    }
                 }
-            }
-            None => items.len() - 1,
-        };
-        state.select(Some(i));
+                None => items.len() - 1,
+            };
+            state.select(Some(i));
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_next_program_with_empty() {
+        let mut app = App::new();
+
+        // Initially no item is selected
+        assert_eq!(app.selected_program(), None);
+
+        // After calling next, no item should be selected
+        app.next_program();
+        assert_eq!(app.selected_program(), None);
+    }
 
     #[test]
     fn test_next_program() {
@@ -241,6 +254,18 @@ mod tests {
         // After calling next again, we should wrap around to the first item
         app.next_program();
         assert_eq!(app.selected_program(), Some(prog_1.clone()));
+    }
+
+    #[test]
+    fn test_previous_program_with_empty() {
+        let mut app = App::new();
+
+        // Initially no item is selected
+        assert_eq!(app.selected_program(), None);
+
+        // After calling previous, no item should be selected
+        app.previous_program();
+        assert_eq!(app.selected_program(), None);
     }
 
     #[test]
