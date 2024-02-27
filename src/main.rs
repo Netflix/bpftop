@@ -41,7 +41,7 @@ use ratatui::{symbols, Frame, Terminal};
 mod app;
 mod bpf_program;
 
-const TABLE_FOOTER: &str = "(q) quit | (↑) move up | (↓) move down | (↵) show graphs";
+const TABLE_FOOTER: &str = "(q) quit | (↑,k) move up | (↓,j) move down | (↵) show graphs";
 const GRAPHS_FOOTER: &str = "(q) quit | (↵) show program list";
 const HEADER_COLS: [&str; 7] = [
     "ID",
@@ -118,12 +118,12 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
         if poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Down => {
+                    KeyCode::Down | KeyCode::Char('j')=> {
                         if !app.show_graphs {
                             app.next_program()
                         }
                     }
-                    KeyCode::Up => {
+                    KeyCode::Up | KeyCode::Char('k') => {
                         if !app.show_graphs {
                             app.previous_program()
                         }
