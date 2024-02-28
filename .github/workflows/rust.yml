@@ -24,6 +24,8 @@ jobs:
         sudo apt-get install -y zlib1g-dev libelf-dev
     - name: Test
       run: cargo test
+    - name: clippy
+      run: cargo clippy --all --tests --all-features --no-deps
     - name: Build
       run: cargo build --release
     - name: Create Release and Upload Artficat
