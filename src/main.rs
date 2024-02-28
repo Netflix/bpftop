@@ -229,10 +229,10 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         .data(&cpu_data);
     let cpu_datasets = vec![cpu_dataset];
     let x_axis = Axis::default()
-        .style(Style::default().white())
+        .style(Style::default())
         .bounds([0.0, cpu_data.len() as f64]);
     let y_axis = Axis::default()
-        .style(Style::default().white())
+        .style(Style::default())
         .bounds([0.0, cpu_y_max])
         .labels(vec![
             "0%".into(),
@@ -260,10 +260,10 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         .data(&eps_data);
     let eps_datasets = vec![eps_dataset];
     let x_axis = Axis::default()
-        .style(Style::default().white())
+        .style(Style::default())
         .bounds([0.0, eps_data.len() as f64]);
     let y_axis = Axis::default()
-        .style(Style::default().white())
+        .style(Style::default())
         .bounds([0.0, eps_y_max])
         .labels(vec![
             "0".into(),
@@ -291,10 +291,10 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         .data(&runtime_data);
     let runtime_datasets = vec![runtime_dataset];
     let x_axis = Axis::default()
-        .style(Style::default().white())
+        .style(Style::default())
         .bounds([0.0, runtime_data.len() as f64]);
     let y_axis = Axis::default()
-        .style(Style::default().white())
+        .style(Style::default())
         .bounds([0.0, runtime_y_max])
         .labels(vec![
             "0".into(),
@@ -360,7 +360,7 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
                 .padding(Padding::new(3, 0, 1, 0))
                 .borders(Borders::ALL),
         )
-        .style(Style::default().fg(Color::White));
+        .style(Style::default());
 
     f.render_widget(table, sub_chunks[0][0]); // Top left
     f.render_widget(cpu_chart.clone(), sub_chunks[0][1]); // Top right
