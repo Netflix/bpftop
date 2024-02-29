@@ -151,10 +151,7 @@ impl App {
         let items = self.items.lock().unwrap();
         let state = self.state.lock().unwrap();
 
-        match state.selected() {
-            Some(i) => Some(items[i].clone()),
-            None => None,
-        }
+        state.selected().map(|i| items[i].clone())
     }
     pub fn next_program(&mut self) {
         let items = self.items.lock().unwrap();
@@ -320,11 +317,11 @@ mod tests {
         let mut app = App::new();
 
         // Initially, show_graphs is false
-        assert_eq!(app.show_graphs, false);
+        assert!(!app.show_graphs);
 
         // After calling toggle_graphs, show_graphs should be true
         app.toggle_graphs();
-        assert_eq!(app.show_graphs, true);
+        assert!(app.show_graphs);
 
         // Set max_cpu, max_eps, and max_runtime to non-zero values
         app.max_cpu = 10.0;
@@ -338,7 +335,7 @@ mod tests {
 
         // After calling toggle_graphs, show_graphs should be false again
         app.toggle_graphs();
-        assert_eq!(app.show_graphs, false);
+        assert!(!app.show_graphs);
 
         // max_cpu, max_eps, and max_runtime should be reset to 0
         assert_eq!(app.max_cpu, 0.0);

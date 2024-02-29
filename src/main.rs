@@ -103,6 +103,7 @@ fn main() -> Result<()> {
     terminal.show_cursor()?;
     terminal.clear()?;
 
+    #[allow(clippy::question_mark)]
     if res.is_err() {
         return res;
     }
@@ -139,9 +140,8 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                     }
                     _ => {}
                 }
-                match (key.modifiers, key.code) {
-                    (KeyModifiers::CONTROL, KeyCode::Char('c')) => return Ok(()),
-                    _ => {}
+                if let (KeyModifiers::CONTROL, KeyCode::Char('c')) = (key.modifiers, key.code) {
+                    return Ok(())
                 }
             }
         }
@@ -210,7 +210,7 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         total_runtime += val.average_runtime_ns;
     }
 
-    let max_cpu = moving_max_cpu as f64;
+    let max_cpu = moving_max_cpu;
     let max_eps = moving_max_eps as f64;
     let max_runtime = moving_max_runtime as f64;
     let avg_cpu = total_cpu / data_buf.len() as f64;
@@ -417,10 +417,7 @@ fn render_footer(f: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn running_as_root() -> bool {
-    match nix::unistd::getuid().as_raw() {
-        0 => true,
-        _ => false,
-    }
+    matches!(nix::unistd::getuid().as_raw(), 0)
 }
 
 fn format_percent(num: f64) -> String {
