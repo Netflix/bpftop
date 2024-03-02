@@ -37,6 +37,12 @@ Run the following command to start `bpftop` on your host:
 sudo ./bpftop
 ```
 
+## Relate links
+
+* [Announcement blog post](https://netflixtechblog.com/announcing-bpftop-streamlining-ebpf-performance-optimization-6a727c1ae2e5)
+* [LWN.net](https://lwn.net/Articles/963767/)
+* [The New Stack](https://thenewstack.io/netflix-releases-bpftop-an-ebpf-based-application-monitor/)
+
 ## How it works
 
 `bpftop` uses the [BPF_ENABLE_STATS](https://elixir.bootlin.com/linux/v6.6.16/source/include/uapi/linux/bpf.h#L792) BPF syscall command to enable global eBPF runtime statistics gathering, which is disabled by default to reduce performance overhead. It collects these statistics every second, calculating the average runtime, events per second, and estimated CPU utilization for each eBPF program within that sample period. This information is displayed in a top-like tabular format. Once `bpftop` terminates, it disables the statistics-gathering function by deleting the file descriptor returned by `BPF_ENABLE_STATS`.
