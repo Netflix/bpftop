@@ -14,6 +14,10 @@ To download the latest release of `bpftop`, use the following command:
 curl -fLJ https://github.com/Netflix/bpftop/releases/latest/download/bpftop -o bpftop && chmod +x bpftop
 ```
 
+or install via your distribution's package manager:
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/bpftop.svg)](https://repology.org/project/bpftop/versions)
+
 ## Features
 
 - Displays a list of all running eBPF programs on the host, including the ID, type, and name
