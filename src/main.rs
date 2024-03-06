@@ -18,6 +18,7 @@
 use std::io;
 use std::os::fd::{FromRawFd, OwnedFd};
 use std::time::Duration;
+use std::fs;
 
 use anyhow::{anyhow, Result};
 use app::App;
@@ -53,6 +54,8 @@ const HEADER_COLS: [&str; 7] = [
     "Total CPU %",
 ];
 
+const BPF_STATS_ENABLED: &str = "/proc/sys/kernel/bpf_stats_enabled";
+
 impl From<&BpfProgram> for Row<'_> {
     fn from(bpf_program: &BpfProgram) -> Self {
         let height = 1;
@@ -78,11 +81,14 @@ fn main() -> Result<()> {
     // Try to enable BPF stats
     let fd = unsafe { bpf_enable_stats(libbpf_sys::BPF_STATS_RUN_TIME) };
     if fd < 0 {
-        return Err(anyhow!("Failed to enable BPF stats"));
+        if let Err(err) = fs::write(BPF_STATS_ENABLED, b"1") {
+            return Err(anyhow!("Failed to enable BPF stats, maybe no BPF_STATS_RUN_TIME or {}", err));
+        }
+    } else {
+        // The file descriptor will be closed when `_owned_fd` goes out of scope.
+        // This guarantees that BPF stats will be disabled when the program exits.
+        let _owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };
     }
-    // The file descriptor will be closed when `_owned_fd` goes out of scope.
-    // This guarantees that BPF stats will be disabled when the program exits.
-    let _owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };
 
     // setup terminal
     enable_raw_mode()?;
@@ -96,6 +102,10 @@ fn main() -> Result<()> {
     let app = App::new();
     app.start_background_thread();
     let res = run_draw_loop(&mut terminal, app);
+
+    if fd < 0 {
+        fs::write(BPF_STATS_ENABLED, b"0")?;
+    }
 
     // restore terminal
     disable_raw_mode()?;
