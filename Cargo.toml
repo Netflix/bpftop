@@ -11,3 +11,4 @@ anyhow = "1.0.80"
 ratatui = { version = "0.26.1", default-features = false, features = ['crossterm'] }
 nix = { version = "0.28.0", features = ["user"] }
 circular-buffer = "0.1.6"
+procfs = "0.16.0"
