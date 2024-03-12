@@ -16,10 +16,11 @@
  *
  */
 use std::io;
+use std::fs;
 use std::os::fd::{FromRawFd, OwnedFd};
 use std::time::Duration;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use app::App;
 use bpf_program::BpfProgram;
 use crossterm::event::{self, poll, Event, KeyCode, KeyModifiers};
@@ -28,6 +29,7 @@ use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use libbpf_sys::bpf_enable_stats;
+use procfs::KernelVersion;
 use ratatui::backend::{Backend, CrosstermBackend};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style, Stylize};
@@ -53,6 +55,8 @@ const HEADER_COLS: [&str; 7] = [
     "Total CPU %",
 ];
 
+const PROCFS_BPF_STATS_ENABLED: &str = "/proc/sys/kernel/bpf_stats_enabled";
+
 impl From<&BpfProgram> for Row<'_> {
     fn from(bpf_program: &BpfProgram) -> Self {
         let height = 1;
@@ -75,14 +79,24 @@ fn main() -> Result<()> {
         return Err(anyhow!("This program must be run as root"));
     }
 
-    // Try to enable BPF stats
-    let fd = unsafe { bpf_enable_stats(libbpf_sys::BPF_STATS_RUN_TIME) };
-    if fd < 0 {
-        return Err(anyhow!("Failed to enable BPF stats"));
+    let kernel_version = KernelVersion::current()?;
+    let _owned_fd: OwnedFd;
+    let stats_syscall_supported = kernel_version.ge(&KernelVersion::new(5, 8, 0));
+
+    // enable BPF stats via syscall if supported
+    // otherwise, enable via procfs
+    if stats_syscall_supported {
+        let fd = unsafe { bpf_enable_stats(libbpf_sys::BPF_STATS_RUN_TIME) };
+        if fd < 0 {
+            return Err(anyhow!("Failed to enable BPF stats via syscall"));
+        }
+        _owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };
+    } else {
+        fs::write(PROCFS_BPF_STATS_ENABLED, b"1").context(format!(
+            "Failed to enable BPF stats via {}",
+            PROCFS_BPF_STATS_ENABLED
+        ))?;
     }
-    // The file descriptor will be closed when `_owned_fd` goes out of scope.
-    // This guarantees that BPF stats will be disabled when the program exits.
-    let _owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };
 
     // setup terminal
     enable_raw_mode()?;
@@ -103,6 +117,14 @@ fn main() -> Result<()> {
     terminal.show_cursor()?;
     terminal.clear()?;
 
+    // disable BPF stats via procfs if needed
+    if !stats_syscall_supported {
+        fs::write(PROCFS_BPF_STATS_ENABLED, b"0").context(format!(
+            "Failed to disable BPF stats via {}",
+            PROCFS_BPF_STATS_ENABLED
+        ))?;
+    }
+
     #[allow(clippy::question_mark)]
     if res.is_err() {
         return res;
@@ -119,7 +141,7 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
         if poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Down | KeyCode::Char('j')=> {
+                    KeyCode::Down | KeyCode::Char('j') => {
                         if !app.show_graphs {
                             app.next_program()
                         }
@@ -141,7 +163,7 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                     _ => {}
                 }
                 if let (KeyModifiers::CONTROL, KeyCode::Char('c')) = (key.modifiers, key.code) {
-                    return Ok(())
+                    return Ok(());
                 }
             }
         }
@@ -341,15 +363,18 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
             Row::new(vec![
                 Cell::from("Program ID".bold()),
                 Cell::from(bpf_program.id),
-            ]).height(2),
+            ])
+            .height(2),
             Row::new(vec![
                 Cell::from("Program Type".bold()),
                 Cell::from(bpf_program.bpf_type),
-            ]).height(2),
+            ])
+            .height(2),
             Row::new(vec![
                 Cell::from("Program Name".bold()),
                 Cell::from(bpf_program.name),
-            ]).height(2),
+            ])
+            .height(2),
         ];
     }
 
