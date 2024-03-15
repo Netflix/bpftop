@@ -25,17 +25,19 @@ use std::{
 use circular_buffer::CircularBuffer;
 use libbpf_rs::query::ProgInfoIter;
 use ratatui::widgets::TableState;
+use tui_input::Input;
 
 use crate::bpf_program::BpfProgram;
 
 pub struct App {
+    pub mode: Mode,
     pub state: Arc<Mutex<TableState>>,
     pub items: Arc<Mutex<Vec<BpfProgram>>>,
     pub data_buf: Arc<Mutex<CircularBuffer<20, PeriodMeasure>>>,
-    pub show_graphs: bool,
     pub max_cpu: f64,
     pub max_eps: i64,
     pub max_runtime: u64,
+    pub filter_input: Arc<Mutex<Input>>,
 }
 
 pub struct PeriodMeasure {
@@ -44,16 +46,24 @@ pub struct PeriodMeasure {
     pub average_runtime_ns: u64,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Mode {
+    Table,
+    Graph,
+    Filter,
+}
+
 impl App {
     pub fn new() -> App {
         App {
+            mode: Mode::Table,
             state: Arc::new(Mutex::new(TableState::default())),
             items: Arc::new(Mutex::new(vec![])),
             data_buf: Arc::new(Mutex::new(CircularBuffer::<20, PeriodMeasure>::new())),
-            show_graphs: false,
             max_cpu: 0.0,
             max_eps: 0,
             max_runtime: 0,
+            filter_input: Arc::new(Mutex::new(Input::default())),
         }
     }
 
@@ -61,6 +71,7 @@ impl App {
         let items = Arc::clone(&self.items);
         let data_buf = Arc::clone(&self.data_buf);
         let state = Arc::clone(&self.state);
+        let filter = Arc::clone(&self.filter_input);
 
         thread::spawn(move || loop {
             let loop_start = Instant::now();
@@ -70,6 +81,10 @@ impl App {
                 .drain(..)
                 .map(|prog| (prog.id.clone(), prog))
                 .collect();
+
+            let filter = filter.lock().unwrap();
+            let filter_str = filter.value().to_lowercase();
+            drop(filter);
 
             let iter = ProgInfoIter::default();
             for prog in iter {
@@ -84,9 +99,18 @@ impl App {
                     continue;
                 }
 
+                // Skip bpf program if it does not match filter
+                let bpf_type = prog.ty.to_string();
+                if !filter_str.is_empty()
+                    && !bpf_type.to_lowercase().contains(&filter_str)
+                    && !prog_name.to_lowercase().contains(&filter_str)
+                {
+                    continue;
+                }
+
                 let mut bpf_program = BpfProgram {
                     id: prog.id.to_string(),
-                    bpf_type: prog.ty.to_string(),
+                    bpf_type,
                     name: prog_name,
                     prev_runtime_ns: 0,
                     run_time_ns: prog.run_time_ns,
@@ -144,7 +168,10 @@ impl App {
         self.max_cpu = 0.0;
         self.max_eps = 0;
         self.max_runtime = 0;
-        self.show_graphs = !self.show_graphs;
+        self.mode = match &self.mode {
+            Mode::Table => Mode::Graph,
+            _ => Mode::Table,
+        }
     }
 
     pub fn selected_program(&self) -> Option<BpfProgram> {
@@ -153,6 +180,7 @@ impl App {
 
         state.selected().map(|i| items[i].clone())
     }
+
     pub fn next_program(&mut self) {
         let items = self.items.lock().unwrap();
         if items.len() > 0 {
@@ -186,6 +214,13 @@ impl App {
                 None => items.len() - 1,
             };
             state.select(Some(i));
+        }
+    }
+
+    pub fn toggle_filter(&mut self) {
+        self.mode = match &self.mode {
+            Mode::Table => Mode::Filter,
+            _ => Mode::Table,
         }
     }
 }
@@ -316,12 +351,12 @@ mod tests {
     fn test_toggle_graphs() {
         let mut app = App::new();
 
-        // Initially, show_graphs is false
-        assert!(!app.show_graphs);
+        // Initially, UI should be in table mode
+        assert_eq!(app.mode, Mode::Table);
 
-        // After calling toggle_graphs, show_graphs should be true
+        // After calling toggle_graphs, UI should be in graph mode
         app.toggle_graphs();
-        assert!(app.show_graphs);
+        assert_eq!(app.mode, Mode::Graph);
 
         // Set max_cpu, max_eps, and max_runtime to non-zero values
         app.max_cpu = 10.0;
@@ -333,9 +368,9 @@ mod tests {
             average_runtime_ns: 100,
         });
 
-        // After calling toggle_graphs, show_graphs should be false again
+        // After calling toggle_graphs, UI should be in table mode again
         app.toggle_graphs();
-        assert!(!app.show_graphs);
+        assert_eq!(app.mode, Mode::Table);
 
         // max_cpu, max_eps, and max_runtime should be reset to 0
         assert_eq!(app.max_cpu, 0.0);
