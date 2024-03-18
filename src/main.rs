@@ -21,7 +21,7 @@ use std::os::fd::{FromRawFd, OwnedFd};
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
-use app::App;
+use app::{App, Mode};
 use bpf_program::BpfProgram;
 use crossterm::event::{self, poll, Event, KeyCode, KeyModifiers};
 use crossterm::execute;
@@ -39,12 +39,15 @@ use ratatui::widgets::{
     Table,
 };
 use ratatui::{symbols, Frame, Terminal};
+use tui_input::backend::crossterm::EventHandler;
 
 mod app;
 mod bpf_program;
 
-const TABLE_FOOTER: &str = "(q) quit | (↑,k) move up | (↓,j) move down | (↵) show graphs";
+const TABLE_FOOTER: &str =
+    "(q) quit | (↑,k) move up | (↓,j) move down | (↵) show graphs | (f) filter";
 const GRAPHS_FOOTER: &str = "(q) quit | (↵) show program list";
+const FILTER_FOOTER: &str = "(↵,Esc) back";
 const HEADER_COLS: [&str; 7] = [
     "ID",
     "Type",
@@ -140,27 +143,29 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
         // wait up to 100ms for a keyboard event
         if poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        if !app.show_graphs {
-                            app.next_program()
+                match app.mode {
+                    Mode::Table => match key.code {
+                        KeyCode::Down | KeyCode::Char('j') => app.next_program(),
+                        KeyCode::Up | KeyCode::Char('k') => app.previous_program(),
+                        KeyCode::Enter => app.toggle_graphs(),
+                        KeyCode::Char('f') => app.toggle_filter(),
+                        KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
+                        _ => {}
+                    },
+                    Mode::Graph => match key.code {
+                        KeyCode::Enter | KeyCode::Esc => app.toggle_graphs(),
+                        KeyCode::Char('q') => return Ok(()),
+                        _ => {}
+                    },
+                    Mode::Filter => match key.code {
+                        KeyCode::Enter | KeyCode::Esc => app.toggle_filter(),
+                        _ => {
+                            app.filter_input
+                                .lock()
+                                .unwrap()
+                                .handle_event(&Event::Key(key));
                         }
-                    }
-                    KeyCode::Up | KeyCode::Char('k') => {
-                        if !app.show_graphs {
-                            app.previous_program()
-                        }
-                    }
-                    KeyCode::Enter => app.toggle_graphs(),
-                    KeyCode::Char('q') => return Ok(()),
-                    KeyCode::Esc => {
-                        if app.show_graphs {
-                            app.toggle_graphs()
-                        } else {
-                            return Ok(());
-                        }
-                    }
-                    _ => {}
+                    },
                 }
                 if let (KeyModifiers::CONTROL, KeyCode::Char('c')) = (key.modifiers, key.code) {
                     return Ok(());
@@ -175,14 +180,13 @@ fn ui(f: &mut Frame, app: &mut App) {
 
     // This can happen when the program exists while the user is viewing the graphs.
     // In this case, we want to switch back to the table view.
-    if app.selected_program().is_none() && app.show_graphs {
-        app.show_graphs = false;
+    if app.selected_program().is_none() && app.mode == Mode::Graph {
+        app.mode = Mode::Table;
     }
 
-    if app.show_graphs {
-        render_graphs(f, app, rects[0]);
-    } else {
-        render_table(f, app, rects[0]);
+    match app.mode {
+        Mode::Table | Mode::Filter => render_table(f, app, rects[0]),
+        Mode::Graph => render_graphs(f, app, rects[0]),
     }
     render_footer(f, app, rects[1]);
 }
@@ -428,17 +432,46 @@ fn render_table(f: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_footer(f: &mut Frame, app: &mut App, area: Rect) {
-    let footer_text = if app.show_graphs {
-        GRAPHS_FOOTER
-    } else {
-        TABLE_FOOTER
+    let footer_text = match app.mode {
+        Mode::Table => TABLE_FOOTER,
+        Mode::Graph => GRAPHS_FOOTER,
+        Mode::Filter => FILTER_FOOTER,
     };
     let info_footer = Paragraph::new(Line::from(footer_text)).centered().block(
         Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Double),
     );
-    f.render_widget(info_footer, area);
+
+    match app.mode {
+        Mode::Table | Mode::Graph => {
+            f.render_widget(info_footer, area);
+        }
+        Mode::Filter => {
+            let filter_area = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(75), Constraint::Percentage(25)].as_ref())
+                .split(area);
+
+            let filter_input = app.filter_input.lock().unwrap();
+            let filter_footer = Paragraph::new(filter_input.value()).block(
+                Block::default()
+                    .padding(Padding::horizontal(1))
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Double)
+                    .title(" Filter Name/Type "),
+            );
+
+            f.render_widget(filter_footer, filter_area[0]); // Left filter footer
+            f.render_widget(info_footer, filter_area[1]); // Right info footer
+
+            // Displays cursor when inputting
+            f.set_cursor(
+                filter_area[0].x + filter_input.visual_cursor() as u16 + 2,
+                filter_area[0].y + 1,
+            )
+        }
+    }
 }
 
 fn running_as_root() -> bool {
