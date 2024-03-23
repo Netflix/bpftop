@@ -54,4 +54,5 @@ sudo ./bpftop
 ## Building from source
 
 1. Install and setup [cross](https://github.com/cross-rs/cross)
-2. Run `cross build --release`
+2. Run `cross build --release` for x86_64
+3. Run `cross build --target=aarch64-unknown-linux-gnu --release` for Arm64

@@ -2,3 +2,9 @@
 xargo = false
 default-target = "x86_64-unknown-linux-gnu"
 pre-build = ["apt-get update && apt-get install -y zlib1g-dev libelf-dev"]
+
+[target.aarch64-unknown-linux-gnu]
+pre-build = [
+    "dpkg --add-architecture $CROSS_DEB_ARCH", 
+    "apt-get update && apt-get --assume-yes install zlib1g-dev:$CROSS_DEB_ARCH libelf-dev:$CROSS_DEB_ARCH"
+]
