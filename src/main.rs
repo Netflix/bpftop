@@ -21,6 +21,7 @@ use std::os::fd::{FromRawFd, OwnedFd};
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
+use app::SortColumn;
 use app::{App, Mode};
 use bpf_program::BpfProgram;
 use crossterm::event::{self, poll, Event, KeyCode, KeyModifiers};
@@ -45,18 +46,12 @@ mod app;
 mod bpf_program;
 
 const TABLE_FOOTER: &str =
-    "(q) quit | (↑,k) move up | (↓,j) move down | (↵) show graphs | (f) filter";
+    "(q) quit | (↑,k) move up | (↓,j) move down | (↵) show graphs | (f) filter | (s) sort";
 const GRAPHS_FOOTER: &str = "(q) quit | (↵) show program list";
 const FILTER_FOOTER: &str = "(↵,Esc) back";
-const HEADER_COLS: [&str; 7] = [
-    "ID",
-    "Type",
-    "Name",
-    "Period Avg Runtime (ns)",
-    "Total Avg Runtime (ns)",
-    "Events per second",
-    "Total CPU %",
-];
+const SORT_CONTROLS_FOOTER: &str =
+    "(↑) asc | (↓) desc | (Backspace) clear | (←) move left | (→) move right";
+const SORT_INFO_FOOTER: &str = "(Esc) back";
 
 const PROCFS_BPF_STATS_ENABLED: &str = "/proc/sys/kernel/bpf_stats_enabled";
 
@@ -149,6 +144,7 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                         KeyCode::Up | KeyCode::Char('k') => app.previous_program(),
                         KeyCode::Enter => app.toggle_graphs(),
                         KeyCode::Char('f') => app.toggle_filter(),
+                        KeyCode::Char('s') => app.toggle_sort(),
                         KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
                         _ => {}
                     },
@@ -165,6 +161,20 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                                 .unwrap()
                                 .handle_event(&Event::Key(key));
                         }
+                    },
+                    Mode::Sort => match key.code {
+                        KeyCode::Esc => app.toggle_sort(),
+                        KeyCode::Up => app.sort_column(SortColumn::Ascending(
+                            app.selected_column.unwrap_or_default(),
+                        )),
+                        KeyCode::Down => app.sort_column(SortColumn::Descending(
+                            app.selected_column.unwrap_or_default(),
+                        )),
+                        KeyCode::Backspace => app.sort_column(SortColumn::NoOrder),
+                        KeyCode::Left => app.previous_column(),
+                        KeyCode::Right => app.next_column(),
+                        KeyCode::Enter => app.cycle_sort_exit(),
+                        _ => {}
                     },
                 }
                 if let (KeyModifiers::CONTROL, KeyCode::Char('c')) = (key.modifiers, key.code) {
@@ -185,7 +195,7 @@ fn ui(f: &mut Frame, app: &mut App) {
     }
 
     match app.mode {
-        Mode::Table | Mode::Filter => render_table(f, app, rects[0]),
+        Mode::Table | Mode::Filter | Mode::Sort => render_table(f, app, rects[0]),
         Mode::Graph => render_graphs(f, app, rects[0]),
     }
     render_footer(f, app, rects[1]);
@@ -269,7 +279,7 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         .block(
             Block::default()
                 .title(format!(
-                    " Total CPU % | Moving Avg: {} | Max: {}",
+                    " Total CPU % | Moving Avg: {} | Max: {} ",
                     format_percent(avg_cpu),
                     format_percent(max_cpu)
                 ))
@@ -300,7 +310,7 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         .block(
             Block::default()
                 .title(format!(
-                    " Events per second | Moving Avg: {} | Max: {}",
+                    " Events per second | Moving Avg: {} | Max: {} ",
                     avg_eps.ceil(),
                     max_eps.ceil()
                 ))
@@ -331,7 +341,7 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         .block(
             Block::default()
                 .title(format!(
-                    " Avg Runtime (ns) | Moving Avg: {} | Max: {}",
+                    " Avg Runtime (ns) | Moving Avg: {} | Max: {} ",
                     avg_runtime.ceil(),
                     max_runtime.ceil()
                 ))
@@ -366,7 +376,7 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         items = vec![
             Row::new(vec![
                 Cell::from("Program ID".bold()),
-                Cell::from(bpf_program.id),
+                Cell::from(bpf_program.id.to_string()),
             ])
             .height(2),
             Row::new(vec![
@@ -400,7 +410,22 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
 fn render_table(f: &mut Frame, app: &mut App, area: Rect) {
     let selected_style = Style::default().add_modifier(Modifier::REVERSED);
     let normal_style = Style::default().bg(Color::Blue);
-    let header = Row::new(HEADER_COLS)
+
+    let columns: Vec<Cell<'_>> = app
+        .header_columns
+        .iter()
+        .enumerate()
+        .map(|(i, col)| {
+            Cell::new(&**col).style(
+                if app.selected_column.is_some_and(|selected| selected == i) {
+                    selected_style
+                } else {
+                    normal_style
+                },
+            )
+        })
+        .collect();
+    let header = Row::new(columns)
         .style(normal_style)
         .height(1)
         .bottom_margin(1);
@@ -432,27 +457,36 @@ fn render_table(f: &mut Frame, app: &mut App, area: Rect) {
 }
 
 fn render_footer(f: &mut Frame, app: &mut App, area: Rect) {
-    let footer_text = match app.mode {
+    let info_text = match app.mode {
         Mode::Table => TABLE_FOOTER,
         Mode::Graph => GRAPHS_FOOTER,
         Mode::Filter => FILTER_FOOTER,
+        Mode::Sort => SORT_INFO_FOOTER,
     };
-    let info_footer = Paragraph::new(Line::from(footer_text)).centered().block(
+    let info_footer = Paragraph::new(Line::from(info_text)).centered().block(
         Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Double),
     );
 
-    match app.mode {
-        Mode::Table | Mode::Graph => {
-            f.render_widget(info_footer, area);
-        }
-        Mode::Filter => {
-            let filter_area = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(75), Constraint::Percentage(25)].as_ref())
-                .split(area);
+    // Only single footer in table and graph mode
+    if let Mode::Table | Mode::Graph = app.mode {
+        f.render_widget(info_footer, area);
+        return;
+    }
 
+    // Two footers in filter and sort mode
+    let split_area = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(75), Constraint::Percentage(25)].as_ref())
+        .split(area);
+
+    // Right footer
+    f.render_widget(info_footer, split_area[1]);
+
+    // Left footer
+    match app.mode {
+        Mode::Filter => {
             let filter_input = app.filter_input.lock().unwrap();
             let filter_footer = Paragraph::new(filter_input.value()).block(
                 Block::default()
@@ -462,15 +496,28 @@ fn render_footer(f: &mut Frame, app: &mut App, area: Rect) {
                     .title(" Filter Name/Type "),
             );
 
-            f.render_widget(filter_footer, filter_area[0]); // Left filter footer
-            f.render_widget(info_footer, filter_area[1]); // Right info footer
+            f.render_widget(filter_footer, split_area[0]);
 
             // Displays cursor when inputting
             f.set_cursor(
-                filter_area[0].x + filter_input.visual_cursor() as u16 + 2,
-                filter_area[0].y + 1,
-            )
+                split_area[0].x + filter_input.visual_cursor() as u16 + 2,
+                split_area[0].y + 1,
+            );
+            drop(filter_input);
         }
+        Mode::Sort => {
+            let sort_footer = Paragraph::new(Line::from(SORT_CONTROLS_FOOTER))
+                .centered()
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Double)
+                        .title(" Sort Column "),
+                );
+
+            f.render_widget(sort_footer, split_area[0]);
+        }
+        _ => {}
     }
 }
 
