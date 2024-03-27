@@ -32,12 +32,15 @@ use crate::bpf_program::BpfProgram;
 pub struct App {
     pub mode: Mode,
     pub state: Arc<Mutex<TableState>>,
+    pub header_columns: [String; 7],
     pub items: Arc<Mutex<Vec<BpfProgram>>>,
     pub data_buf: Arc<Mutex<CircularBuffer<20, PeriodMeasure>>>,
     pub max_cpu: f64,
     pub max_eps: i64,
     pub max_runtime: u64,
     pub filter_input: Arc<Mutex<Input>>,
+    pub selected_column: Option<usize>,
+    sorted_column: Arc<Mutex<SortColumn>>,
 }
 
 pub struct PeriodMeasure {
@@ -51,6 +54,14 @@ pub enum Mode {
     Table,
     Graph,
     Filter,
+    Sort,
+}
+
+#[derive(Clone, Copy)]
+pub enum SortColumn {
+    NoOrder,
+    Ascending(usize),
+    Descending(usize),
 }
 
 impl App {
@@ -58,12 +69,23 @@ impl App {
         App {
             mode: Mode::Table,
             state: Arc::new(Mutex::new(TableState::default())),
+            header_columns: [
+                String::from("ID "),
+                String::from("Type "),
+                String::from("Name "),
+                String::from("Period Avg Runtime (ns) "),
+                String::from("Total Avg Runtime (ns) "),
+                String::from("Events per second "),
+                String::from("Total CPU % "),
+            ],
             items: Arc::new(Mutex::new(vec![])),
             data_buf: Arc::new(Mutex::new(CircularBuffer::<20, PeriodMeasure>::new())),
             max_cpu: 0.0,
             max_eps: 0,
             max_runtime: 0,
             filter_input: Arc::new(Mutex::new(Input::default())),
+            selected_column: None,
+            sorted_column: Arc::new(Mutex::new(SortColumn::NoOrder)),
         }
     }
 
@@ -72,15 +94,14 @@ impl App {
         let data_buf = Arc::clone(&self.data_buf);
         let state = Arc::clone(&self.state);
         let filter = Arc::clone(&self.filter_input);
+        let sort_col = Arc::clone(&self.sorted_column);
 
         thread::spawn(move || loop {
             let loop_start = Instant::now();
 
             let mut items = items.lock().unwrap();
-            let map: HashMap<String, BpfProgram> = items
-                .drain(..)
-                .map(|prog| (prog.id.clone(), prog))
-                .collect();
+            let map: HashMap<u32, BpfProgram> =
+                items.drain(..).map(|prog| (prog.id, prog)).collect();
 
             let filter = filter.lock().unwrap();
             let filter_str = filter.value().to_lowercase();
@@ -109,7 +130,7 @@ impl App {
                 }
 
                 let mut bpf_program = BpfProgram {
-                    id: prog.id.to_string(),
+                    id: prog.id,
                     bpf_type,
                     name: prog_name,
                     prev_runtime_ns: 0,
@@ -148,9 +169,44 @@ impl App {
             }
 
             // Explicitly drop the MutexGuards to unlock before sleeping.
-            drop(items);
             drop(data_buf);
             drop(state);
+
+            // Sort items based on index of the column
+            let sort_col = sort_col.lock().unwrap();
+            match *sort_col {
+                SortColumn::Ascending(col_idx) | SortColumn::Descending(col_idx) => {
+                    match col_idx {
+                        1 => items.sort_unstable_by(|a, b| a.bpf_type.cmp(&b.bpf_type)),
+                        2 => items.sort_unstable_by(|a, b| a.name.cmp(&b.name)),
+                        3 => items.sort_unstable_by(|a, b| {
+                            a.period_average_runtime_ns()
+                                .cmp(&b.period_average_runtime_ns())
+                        }),
+                        4 => items.sort_unstable_by(|a, b| {
+                            a.total_average_runtime_ns()
+                                .cmp(&b.total_average_runtime_ns())
+                        }),
+                        5 => items.sort_unstable_by(|a, b| {
+                            a.events_per_second().cmp(&b.events_per_second())
+                        }),
+                        6 => items.sort_unstable_by(|a, b| {
+                            a.cpu_time_percent()
+                                .partial_cmp(&b.cpu_time_percent())
+                                .unwrap()
+                        }),
+                        _ => items.sort_unstable_by_key(|item| item.id),
+                    }
+                    if let SortColumn::Descending(_) = *sort_col {
+                        items.reverse();
+                    }
+                }
+                SortColumn::NoOrder => {}
+            }
+
+            // Explicitly drop the remaining MutexGuards
+            drop(items);
+            drop(sort_col);
 
             // Adjust sleep duration to maintain a 1-second sample period, accounting for loop processing time.
             let elapsed = loop_start.elapsed();
@@ -223,6 +279,91 @@ impl App {
             _ => Mode::Table,
         }
     }
+
+    pub fn toggle_sort(&mut self) {
+        match &self.mode {
+            Mode::Table => {
+                self.mode = Mode::Sort;
+
+                // Pickup where last selected column left off from
+                let sorted_column = self.sorted_column.lock().unwrap();
+                self.selected_column = match *sorted_column {
+                    SortColumn::Descending(col_idx) | SortColumn::Ascending(col_idx) => {
+                        Some(col_idx)
+                    }
+                    SortColumn::NoOrder => Some(0),
+                };
+                drop(sorted_column);
+            }
+            _ => {
+                self.mode = Mode::Table;
+                self.selected_column = None;
+            }
+        }
+    }
+
+    pub fn next_column(&mut self) {
+        if let Some(selected) = self.selected_column.as_mut() {
+            let num_cols = self.header_columns.len();
+            *selected = (*selected + 1) % num_cols;
+        } else {
+            self.selected_column = Some(0);
+        }
+    }
+
+    pub fn previous_column(&mut self) {
+        if let Some(selected) = self.selected_column.as_mut() {
+            let num_cols = self.header_columns.len();
+            *selected = (*selected + num_cols - 1) % num_cols;
+        } else {
+            self.selected_column = Some(0);
+        }
+    }
+
+    pub fn sort_column(&mut self, sort_input: SortColumn) {
+        let mut sorted_column = self.sorted_column.lock().unwrap();
+
+        // Clear sort symbol of the currently sorted column
+        match *sorted_column {
+            SortColumn::Ascending(col_idx) | SortColumn::Descending(col_idx) => {
+                self.header_columns[col_idx].pop();
+            }
+            SortColumn::NoOrder => {}
+        };
+
+        // Update selected column with new sort
+        match sort_input {
+            SortColumn::Ascending(col_idx) => {
+                self.header_columns[col_idx].push('↑');
+            }
+            SortColumn::Descending(col_idx) => {
+                self.header_columns[col_idx].push('↓');
+            }
+            SortColumn::NoOrder => {}
+        }
+        *sorted_column = sort_input;
+        drop(sorted_column);
+    }
+
+    pub fn cycle_sort_exit(&mut self) {
+        let sorted_column = self.sorted_column.lock().unwrap();
+        let sorted_col = *sorted_column;
+        drop(sorted_column);
+
+        // Toggle sort type
+        let selected_idx = self.selected_column.unwrap_or_default();
+        match sorted_col {
+            SortColumn::Descending(col_idx) if col_idx == selected_idx => {
+                self.sort_column(SortColumn::Ascending(selected_idx));
+            }
+            _ => {
+                self.sort_column(SortColumn::Descending(selected_idx));
+            }
+        }
+
+        // Exit sort mode
+        self.toggle_sort();
+    }
 }
 
 #[cfg(test)]
@@ -245,7 +386,7 @@ mod tests {
     fn test_next_program() {
         let mut app = App::new();
         let prog_1 = BpfProgram {
-            id: "1".to_string(),
+            id: 1,
             bpf_type: "test".to_string(),
             name: "test".to_string(),
             prev_runtime_ns: 100,
@@ -257,7 +398,7 @@ mod tests {
         };
 
         let prog_2 = BpfProgram {
-            id: "2".to_string(),
+            id: 2,
             bpf_type: "test".to_string(),
             name: "test".to_string(),
             prev_runtime_ns: 100,
@@ -304,7 +445,7 @@ mod tests {
     fn test_previous_program() {
         let mut app = App::new();
         let prog_1 = BpfProgram {
-            id: "1".to_string(),
+            id: 1,
             bpf_type: "test".to_string(),
             name: "test".to_string(),
             prev_runtime_ns: 100,
@@ -316,7 +457,7 @@ mod tests {
         };
 
         let prog_2 = BpfProgram {
-            id: "2".to_string(),
+            id: 2,
             bpf_type: "test".to_string(),
             name: "test".to_string(),
             prev_runtime_ns: 100,

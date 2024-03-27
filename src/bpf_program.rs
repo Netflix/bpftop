@@ -19,7 +19,7 @@ use std::time::Instant;
 
 #[derive(Clone, Debug)]
 pub struct BpfProgram {
-    pub id: String,
+    pub id: u32,
     pub bpf_type: String,
     pub name: String,
     pub prev_runtime_ns: u64,
@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn test_partial_eq() {
         let prog_1 = BpfProgram {
-            id: "1".to_string(),
+            id: 1,
             bpf_type: "test".to_string(),
             name: "test".to_string(),
             prev_runtime_ns: 100,
@@ -97,7 +97,7 @@ mod tests {
         };
 
         let prog_2 = BpfProgram {
-            id: "2".to_string(),
+            id: 2,
             bpf_type: "test".to_string(),
             name: "test".to_string(),
             prev_runtime_ns: 100,
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn test_period_average_runtime_ns() {
         let prog = BpfProgram {
-            id: "test".to_string(),
+            id: 1,
             bpf_type: "test".to_string(),
             name: "test".to_string(),
             prev_runtime_ns: 100,
@@ -131,7 +131,7 @@ mod tests {
     #[test]
     fn test_total_average_runtime_ns() {
         let prog = BpfProgram {
-            id: "test".to_string(),
+            id: 1,
             bpf_type: "test".to_string(),
             name: "test".to_string(),
             prev_runtime_ns: 100,
@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn test_runtime_delta() {
         let prog = BpfProgram {
-            id: "test".to_string(),
+            id: 1,
             bpf_type: "test".to_string(),
             name: "test".to_string(),
             prev_runtime_ns: 100,
@@ -163,7 +163,7 @@ mod tests {
     #[test]
     fn test_run_cnt_delta() {
         let prog = BpfProgram {
-            id: "test".to_string(),
+            id: 1,
             bpf_type: "test".to_string(),
             name: "test".to_string(),
             prev_runtime_ns: 100,
@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn test_events_per_second() {
         let prog = BpfProgram {
-            id: "test".to_string(),
+            id: 1,
             bpf_type: "test".to_string(),
             name: "test".to_string(),
             prev_runtime_ns: 100,
@@ -195,7 +195,7 @@ mod tests {
     #[test]
     fn test_cpu_time_percent() {
         let prog = BpfProgram {
-            id: "test".to_string(),
+            id: 1,
             bpf_type: "test".to_string(),
             name: "test".to_string(),
             prev_runtime_ns: 100_000_000,
