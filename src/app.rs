@@ -31,7 +31,7 @@ use crate::bpf_program::BpfProgram;
 
 pub struct App {
     pub mode: Mode,
-    pub state: Arc<Mutex<TableState>>,
+    pub table_state: Arc<Mutex<TableState>>,
     pub header_columns: [String; 7],
     pub items: Arc<Mutex<Vec<BpfProgram>>>,
     pub data_buf: Arc<Mutex<CircularBuffer<20, PeriodMeasure>>>,
@@ -68,7 +68,7 @@ impl App {
     pub fn new() -> App {
         App {
             mode: Mode::Table,
-            state: Arc::new(Mutex::new(TableState::default())),
+            table_state: Arc::new(Mutex::new(TableState::default())),
             header_columns: [
                 String::from("ID "),
                 String::from("Type "),
@@ -92,7 +92,7 @@ impl App {
     pub fn start_background_thread(&self) {
         let items = Arc::clone(&self.items);
         let data_buf = Arc::clone(&self.data_buf);
-        let state = Arc::clone(&self.state);
+        let state = Arc::clone(&self.table_state);
         let filter = Arc::clone(&self.filter_input);
         let sort_col = Arc::clone(&self.sorted_column);
 
@@ -232,7 +232,7 @@ impl App {
 
     pub fn selected_program(&self) -> Option<BpfProgram> {
         let items = self.items.lock().unwrap();
-        let state = self.state.lock().unwrap();
+        let state = self.table_state.lock().unwrap();
 
         state.selected().map(|i| items[i].clone())
     }
@@ -240,7 +240,7 @@ impl App {
     pub fn next_program(&mut self) {
         let items = self.items.lock().unwrap();
         if items.len() > 0 {
-            let mut state = self.state.lock().unwrap();
+            let mut state = self.table_state.lock().unwrap();
             let i = match state.selected() {
                 Some(i) => {
                     if i >= items.len() - 1 {
@@ -258,7 +258,7 @@ impl App {
     pub fn previous_program(&mut self) {
         let items = self.items.lock().unwrap();
         if items.len() > 0 {
-            let mut state = self.state.lock().unwrap();
+            let mut state = self.table_state.lock().unwrap();
             let i = match state.selected() {
                 Some(i) => {
                     if i == 0 {

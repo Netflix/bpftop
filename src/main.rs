@@ -453,7 +453,7 @@ fn render_table(f: &mut Frame, app: &mut App, area: Rect) {
         )
         .highlight_style(selected_style)
         .highlight_symbol(">> ");
-    f.render_stateful_widget(t, area, &mut app.state.lock().unwrap());
+    f.render_stateful_widget(t, area, &mut app.table_state.lock().unwrap());
 }
 
 fn render_footer(f: &mut Frame, app: &mut App, area: Rect) {
