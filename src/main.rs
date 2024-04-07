@@ -1,3 +1,4 @@
+use std::fs;
 /**
  *
  *  Copyright 2024 Netflix, Inc.
@@ -16,7 +17,6 @@
  *
  */
 use std::io;
-use std::fs;
 use std::os::fd::{FromRawFd, OwnedFd};
 use std::time::Duration;
 
@@ -142,14 +142,14 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
                     Mode::Table => match key.code {
                         KeyCode::Down | KeyCode::Char('j') => app.next_program(),
                         KeyCode::Up | KeyCode::Char('k') => app.previous_program(),
-                        KeyCode::Enter => app.toggle_graphs(),
+                        KeyCode::Enter => app.show_graphs(),
                         KeyCode::Char('f') => app.toggle_filter(),
                         KeyCode::Char('s') => app.toggle_sort(),
                         KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
                         _ => {}
                     },
                     Mode::Graph => match key.code {
-                        KeyCode::Enter | KeyCode::Esc => app.toggle_graphs(),
+                        KeyCode::Enter | KeyCode::Esc => app.show_table(),
                         KeyCode::Char('q') => return Ok(()),
                         _ => {}
                     },
@@ -187,12 +187,6 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
 
 fn ui(f: &mut Frame, app: &mut App) {
     let rects = Layout::vertical([Constraint::Min(5), Constraint::Length(3)]).split(f.size());
-
-    // This can happen when the program exists while the user is viewing the graphs.
-    // In this case, we want to switch back to the table view.
-    if app.selected_program().is_none() && app.mode == Mode::Graph {
-        app.mode = Mode::Table;
-    }
 
     match app.mode {
         Mode::Table | Mode::Filter | Mode::Sort => render_table(f, app, rects[0]),
@@ -249,9 +243,15 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
     let max_cpu = moving_max_cpu;
     let max_eps = moving_max_eps as f64;
     let max_runtime = moving_max_runtime as f64;
-    let avg_cpu = total_cpu / data_buf.len() as f64;
-    let avg_eps = total_eps as f64 / data_buf.len() as f64;
-    let avg_runtime = total_runtime as f64 / data_buf.len() as f64;
+
+    let mut avg_cpu = 0.0;
+    let mut avg_eps = 0.0;
+    let mut avg_runtime = 0.0;
+    if data_buf.len() > 0 {
+        avg_cpu = total_cpu / data_buf.len() as f64;
+        avg_eps = total_eps as f64 / data_buf.len() as f64;
+        avg_runtime = total_runtime as f64 / data_buf.len() as f64;
+    }
 
     let cpu_y_max = app.max_cpu.ceil();
     let eps_y_max = (app.max_eps as f64 * 2.0).ceil();
@@ -371,8 +371,8 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         Row::new(vec![Cell::from("Program Name"), Cell::from("Unknown")]),
     ];
     let widths = [Constraint::Length(15), Constraint::Min(0)];
-
-    if let Some(bpf_program) = app.selected_program() {
+    
+    if let Some(bpf_program) = app.graphs_bpf_program.lock().unwrap().clone() {
         items = vec![
             Row::new(vec![
                 Cell::from("Program ID".bold()),
@@ -453,7 +453,7 @@ fn render_table(f: &mut Frame, app: &mut App, area: Rect) {
         )
         .highlight_style(selected_style)
         .highlight_symbol(">> ");
-    f.render_stateful_widget(t, area, &mut app.state.lock().unwrap());
+    f.render_stateful_widget(t, area, &mut app.table_state);
 }
 
 fn render_footer(f: &mut Frame, app: &mut App, area: Rect) {

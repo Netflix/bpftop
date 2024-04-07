@@ -31,7 +31,7 @@ use crate::bpf_program::BpfProgram;
 
 pub struct App {
     pub mode: Mode,
-    pub state: Arc<Mutex<TableState>>,
+    pub table_state: TableState,
     pub header_columns: [String; 7],
     pub items: Arc<Mutex<Vec<BpfProgram>>>,
     pub data_buf: Arc<Mutex<CircularBuffer<20, PeriodMeasure>>>,
@@ -40,6 +40,7 @@ pub struct App {
     pub max_runtime: u64,
     pub filter_input: Arc<Mutex<Input>>,
     pub selected_column: Option<usize>,
+    pub graphs_bpf_program: Arc<Mutex<Option<BpfProgram>>>,
     sorted_column: Arc<Mutex<SortColumn>>,
 }
 
@@ -68,7 +69,7 @@ impl App {
     pub fn new() -> App {
         App {
             mode: Mode::Table,
-            state: Arc::new(Mutex::new(TableState::default())),
+            table_state: TableState::default(),
             header_columns: [
                 String::from("ID "),
                 String::from("Type "),
@@ -85,6 +86,7 @@ impl App {
             max_runtime: 0,
             filter_input: Arc::new(Mutex::new(Input::default())),
             selected_column: None,
+            graphs_bpf_program: Arc::new(Mutex::new(None)),
             sorted_column: Arc::new(Mutex::new(SortColumn::NoOrder)),
         }
     }
@@ -92,9 +94,9 @@ impl App {
     pub fn start_background_thread(&self) {
         let items = Arc::clone(&self.items);
         let data_buf = Arc::clone(&self.data_buf);
-        let state = Arc::clone(&self.state);
         let filter = Arc::clone(&self.filter_input);
         let sort_col = Arc::clone(&self.sorted_column);
+        let graphs_bpf_program = Arc::clone(&self.graphs_bpf_program);
 
         thread::spawn(move || loop {
             let loop_start = Instant::now();
@@ -147,30 +149,19 @@ impl App {
                     bpf_program.period_ns = prev_bpf_program.instant.elapsed().as_nanos();
                 }
 
-                items.push(bpf_program);
-            }
-
-            let mut state = state.lock().unwrap();
-            let mut data_buf = data_buf.lock().unwrap();
-            if let Some(index) = state.selected() {
-                // If the selected index is out of bounds, unselect it.
-                // This can happen if a program exits while it's selected.
-                if index >= items.len() {
-                    state.select(None);
-                    continue;
+                if let Some(graphs_bpf_program) = graphs_bpf_program.lock().unwrap().as_ref() {
+                    if bpf_program.id == graphs_bpf_program.id {
+                        let mut data_buf = data_buf.lock().unwrap();
+                        data_buf.push_back(PeriodMeasure {
+                            cpu_time_percent: bpf_program.cpu_time_percent(),
+                            events_per_sec: bpf_program.events_per_second(),
+                            average_runtime_ns: bpf_program.period_average_runtime_ns(),
+                        });
+                    }
                 }
 
-                let bpf_program = &items[index];
-                data_buf.push_back(PeriodMeasure {
-                    cpu_time_percent: bpf_program.cpu_time_percent(),
-                    events_per_sec: bpf_program.events_per_second(),
-                    average_runtime_ns: bpf_program.period_average_runtime_ns(),
-                });
+                items.push(bpf_program);
             }
-
-            // Explicitly drop the MutexGuards to unlock before sleeping.
-            drop(data_buf);
-            drop(state);
 
             // Sort items based on index of the column
             let sort_col = sort_col.lock().unwrap();
@@ -219,29 +210,34 @@ impl App {
         });
     }
 
-    pub fn toggle_graphs(&mut self) {
+    pub fn show_graphs(&mut self) {
         self.data_buf.lock().unwrap().clear();
         self.max_cpu = 0.0;
         self.max_eps = 0;
         self.max_runtime = 0;
-        self.mode = match &self.mode {
-            Mode::Table => Mode::Graph,
-            _ => Mode::Table,
-        }
+        self.mode = Mode::Graph;
+        *self.graphs_bpf_program.lock().unwrap() = self.selected_program().map(|prog| prog.clone());
+    }
+
+    pub fn show_table(&mut self) {
+        self.mode = Mode::Table;
+        self.data_buf.lock().unwrap().clear();
+        self.max_cpu = 0.0;
+        self.max_eps = 0;
+        self.max_runtime = 0;
+        *self.graphs_bpf_program.lock().unwrap() = None;
     }
 
     pub fn selected_program(&self) -> Option<BpfProgram> {
         let items = self.items.lock().unwrap();
-        let state = self.state.lock().unwrap();
-
-        state.selected().map(|i| items[i].clone())
+        
+        self.table_state.selected().and_then(|i| items.get(i).cloned())
     }
 
     pub fn next_program(&mut self) {
         let items = self.items.lock().unwrap();
         if items.len() > 0 {
-            let mut state = self.state.lock().unwrap();
-            let i = match state.selected() {
+            let i = match self.table_state.selected() {
                 Some(i) => {
                     if i >= items.len() - 1 {
                         0
@@ -251,15 +247,14 @@ impl App {
                 }
                 None => 0,
             };
-            state.select(Some(i));
+            self.table_state.select(Some(i));
         }
     }
 
     pub fn previous_program(&mut self) {
         let items = self.items.lock().unwrap();
         if items.len() > 0 {
-            let mut state = self.state.lock().unwrap();
-            let i = match state.selected() {
+            let i = match self.table_state.selected() {
                 Some(i) => {
                     if i == 0 {
                         items.len() - 1
@@ -269,7 +264,7 @@ impl App {
                 }
                 None => items.len() - 1,
             };
-            state.select(Some(i));
+            self.table_state.select(Some(i));
         }
     }
 
@@ -495,8 +490,8 @@ mod tests {
         // Initially, UI should be in table mode
         assert_eq!(app.mode, Mode::Table);
 
-        // After calling toggle_graphs, UI should be in graph mode
-        app.toggle_graphs();
+        // After calling show_graphs, UI should be in graph mode
+        app.show_graphs();
         assert_eq!(app.mode, Mode::Graph);
 
         // Set max_cpu, max_eps, and max_runtime to non-zero values
@@ -509,8 +504,8 @@ mod tests {
             average_runtime_ns: 100,
         });
 
-        // After calling toggle_graphs, UI should be in table mode again
-        app.toggle_graphs();
+        // After calling show_table, UI should be in table mode again
+        app.show_table();
         assert_eq!(app.mode, Mode::Table);
 
         // max_cpu, max_eps, and max_runtime should be reset to 0
