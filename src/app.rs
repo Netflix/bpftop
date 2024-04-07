@@ -157,7 +157,6 @@ impl App {
                             events_per_sec: bpf_program.events_per_second(),
                             average_runtime_ns: bpf_program.period_average_runtime_ns(),
                         });
-                        drop(data_buf);
                     }
                 }
 
