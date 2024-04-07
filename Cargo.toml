@@ -4,7 +4,7 @@ version = "0.4.0"
 edition = "2021"
 
 [dependencies]
-libbpf-rs = "0.22.1"
+libbpf-rs = "0.23.0"
 libbpf-sys = "1.4.0"
 crossterm = "0.27.0"
 anyhow = "1.0.81"
