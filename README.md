@@ -18,6 +18,19 @@ or install via your distribution's package manager:
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/bpftop.svg)](https://repology.org/project/bpftop/versions)
 
+### Arch Linux
+
+bpftop is published as an [AUR package](https://aur.archlinux.org/packages/bpftop). To install:
+```
+git clone https://aur.archlinux.org/bpftop.git
+cd bpftop
+makepkg -si
+```
+or with `yay`:
+```
+yay -Sy bpftop
+```
+
 ## Features
 
 - Displays a list of all running eBPF programs on the host, including the ID, type, and name
