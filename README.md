@@ -43,7 +43,6 @@ yay -Sy bpftop
 ## Prerequisites
 
 - `bpftop` requires `sudo` privileges to run.
-- The Linux kernel version must be 5.8 or later.
 - The binary is dynamically linked to `libz` and `libelf`, so these libraries must be present on the systems where you intend to run `bpftop`.
 
 ## Usage
