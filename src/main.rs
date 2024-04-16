@@ -18,6 +18,7 @@ use std::fs;
  */
 use std::io;
 use std::os::fd::{FromRawFd, OwnedFd};
+use std::panic;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
@@ -104,6 +105,22 @@ fn main() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
+    // capture panic to disable BPF stats via procfs and restore terminal
+    let previous_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |panic_info| {
+        if !stats_syscall_supported {
+            if let Err(err) = disable_bpf_stats_procfs() {
+                eprintln!("Failed to disable BPF stats via procfs: {:?}", err);
+            }
+        }
+
+        if let Err(err) = disable_raw_mode() {
+            eprintln!("Failed to disable raw mode: {:?}", err);
+        }
+
+        previous_hook(panic_info);
+    }));
+
     // create app and run the draw loop
     let app = App::new();
     app.start_background_thread();
@@ -117,10 +134,7 @@ fn main() -> Result<()> {
 
     // disable BPF stats via procfs if needed
     if !stats_syscall_supported {
-        fs::write(PROCFS_BPF_STATS_ENABLED, b"0").context(format!(
-            "Failed to disable BPF stats via {}",
-            PROCFS_BPF_STATS_ENABLED
-        ))?;
+        disable_bpf_stats_procfs()?;
     }
 
     #[allow(clippy::question_mark)]
@@ -128,6 +142,14 @@ fn main() -> Result<()> {
         return res;
     }
 
+    Ok(())
+}
+
+fn disable_bpf_stats_procfs() -> Result<()> {
+    fs::write(PROCFS_BPF_STATS_ENABLED, b"0").context(format!(
+        "Failed to disable BPF stats via {}",
+        PROCFS_BPF_STATS_ENABLED
+    ))?;
     Ok(())
 }
 
@@ -371,7 +393,7 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         Row::new(vec![Cell::from("Program Name"), Cell::from("Unknown")]),
     ];
     let widths = [Constraint::Length(15), Constraint::Min(0)];
-    
+
     if let Some(bpf_program) = app.graphs_bpf_program.lock().unwrap().clone() {
         items = vec![
             Row::new(vec![
