@@ -8,7 +8,7 @@ libbpf-rs = "0.23.0"
 libbpf-sys = "1.4.0"
 crossterm = "0.27.0"
 anyhow = "1.0.81"
-ratatui = { version = "0.26.1", default-features = false, features = ['crossterm'] }
+ratatui = { version = "0.26.2", default-features = false, features = ['crossterm'] }
 nix = { version = "0.28.0", features = ["user"] }
 circular-buffer = "0.1.7"
 procfs = "0.16.0"
