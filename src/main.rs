@@ -157,12 +157,9 @@ fn procs_bfs_stats_disable() -> Result<()> {
 }
 
 fn procfs_bpf_stats_is_enabled() -> Result<bool> {
-    let value = fs::read_to_string(PROCFS_BPF_STATS_ENABLED)
-        .context(format!("Failed to read from {}", PROCFS_BPF_STATS_ENABLED))?
-        .trim()
-        .to_string();
-
-    Ok(value == "1")
+    fs::read_to_string(PROCFS_BPF_STATS_ENABLED)
+        .context(format!("Failed to read from {}", PROCFS_BPF_STATS_ENABLED))
+        .map(|value| value.trim() == "1")
 }
 
 fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<()> {
