@@ -83,7 +83,7 @@ fn main() -> Result<()> {
     let mut stats_enabled_via_procfs = false;
 
     // enable BPF stats via syscall if kernel version >= 5.8
-    if kernel_version.ge(&KernelVersion::new(5, 8, 0)) {
+    if kernel_version >= KernelVersion::new(5, 8, 0) {
         let fd = unsafe { bpf_enable_stats(libbpf_sys::BPF_STATS_RUN_TIME) };
         if fd < 0 {
             return Err(anyhow!("Failed to enable BPF stats via syscall"));
