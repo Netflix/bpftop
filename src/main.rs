@@ -80,21 +80,24 @@ fn main() -> Result<()> {
 
     let kernel_version = KernelVersion::current()?;
     let _owned_fd: OwnedFd;
-    let stats_syscall_supported = kernel_version.ge(&KernelVersion::new(5, 8, 0));
+    let mut stats_enabled_via_procfs = false;
 
-    // enable BPF stats via syscall if supported
-    // otherwise, enable via procfs
-    if stats_syscall_supported {
+    // enable BPF stats via syscall if kernel version >= 5.8
+    if kernel_version >= KernelVersion::new(5, 8, 0) {
         let fd = unsafe { bpf_enable_stats(libbpf_sys::BPF_STATS_RUN_TIME) };
         if fd < 0 {
             return Err(anyhow!("Failed to enable BPF stats via syscall"));
         }
         _owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };
-    } else {
-        fs::write(PROCFS_BPF_STATS_ENABLED, b"1").context(format!(
-            "Failed to enable BPF stats via {}",
-            PROCFS_BPF_STATS_ENABLED
-        ))?;
+    } else { // otherwise, enable via procfs
+        // but first check if procfs bpf stats were already enabled
+        if !procfs_bpf_stats_is_enabled()? {
+            fs::write(PROCFS_BPF_STATS_ENABLED, b"1").context(format!(
+                "Failed to enable BPF stats via {}",
+                PROCFS_BPF_STATS_ENABLED
+            ))?;
+            stats_enabled_via_procfs = true;
+        }
     }
 
     // setup terminal
@@ -108,8 +111,8 @@ fn main() -> Result<()> {
     // capture panic to disable BPF stats via procfs and restore terminal
     let previous_hook = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {
-        if !stats_syscall_supported {
-            if let Err(err) = disable_bpf_stats_procfs() {
+        if stats_enabled_via_procfs {
+            if let Err(err) = procs_bfs_stats_disable() {
                 eprintln!("Failed to disable BPF stats via procfs: {:?}", err);
             }
         }
@@ -133,8 +136,8 @@ fn main() -> Result<()> {
     terminal.clear()?;
 
     // disable BPF stats via procfs if needed
-    if !stats_syscall_supported {
-        disable_bpf_stats_procfs()?;
+    if stats_enabled_via_procfs {
+        procs_bfs_stats_disable()?;
     }
 
     #[allow(clippy::question_mark)]
@@ -145,12 +148,18 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn disable_bpf_stats_procfs() -> Result<()> {
+fn procs_bfs_stats_disable() -> Result<()> {
     fs::write(PROCFS_BPF_STATS_ENABLED, b"0").context(format!(
         "Failed to disable BPF stats via {}",
         PROCFS_BPF_STATS_ENABLED
     ))?;
     Ok(())
+}
+
+fn procfs_bpf_stats_is_enabled() -> Result<bool> {
+    fs::read_to_string(PROCFS_BPF_STATS_ENABLED)
+        .context(format!("Failed to read from {}", PROCFS_BPF_STATS_ENABLED))
+        .map(|value| value.trim() == "1")
 }
 
 fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<()> {
