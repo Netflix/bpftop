@@ -4,6 +4,8 @@ version = "0.4.2"
 edition = "2021"
 
 [dependencies]
+log = "0.4.14"
+systemd-journal-logger = "2.1.1"
 libbpf-rs = "0.23.0"
 libbpf-sys = "1.4.0"
 crossterm = "0.27.0"

@@ -31,6 +31,8 @@ use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use libbpf_sys::bpf_enable_stats;
+use log::info;
+use log::LevelFilter;
 use procfs::KernelVersion;
 use ratatui::backend::{Backend, CrosstermBackend};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -41,6 +43,7 @@ use ratatui::widgets::{
     Table,
 };
 use ratatui::{symbols, Frame, Terminal};
+use systemd_journal_logger::JournalLog;
 use tui_input::backend::crossterm::EventHandler;
 
 mod app;
@@ -78,9 +81,16 @@ fn main() -> Result<()> {
         return Err(anyhow!("This program must be run as root"));
     }
 
+    JournalLog::new()?
+        .with_syslog_identifier("bpftop".to_string())
+        .install()?;
+    log::set_max_level(LevelFilter::Info);
+
     let kernel_version = KernelVersion::current()?;
     let _owned_fd: OwnedFd;
     let mut stats_enabled_via_procfs = false;
+
+    info!("Starting bpftop with Kernel {:?}", kernel_version);
 
     // enable BPF stats via syscall if kernel version >= 5.8
     if kernel_version >= KernelVersion::new(5, 8, 0) {
@@ -89,7 +99,8 @@ fn main() -> Result<()> {
             return Err(anyhow!("Failed to enable BPF stats via syscall"));
         }
         _owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };
-    } else { // otherwise, enable via procfs
+    } else {
+        // otherwise, enable via procfs
         // but first check if procfs bpf stats were already enabled
         if !procfs_bpf_stats_is_enabled()? {
             fs::write(PROCFS_BPF_STATS_ENABLED, b"1").context(format!(
