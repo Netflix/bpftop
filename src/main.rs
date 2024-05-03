@@ -15,6 +15,7 @@
  *  limitations under the License.
  *
  */
+use crate::helpers::format_percent;
 use anyhow::{anyhow, Context, Result};
 use app::SortColumn;
 use app::{App, Mode};
@@ -24,7 +25,9 @@ use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
+use libbpf_rs::skel::{OpenSkel, Skel, SkelBuilder};
 use libbpf_sys::bpf_enable_stats;
+use pid_iter::PidIterSkelBuilder;
 use procfs::KernelVersion;
 use ratatui::backend::{Backend, CrosstermBackend};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -47,6 +50,13 @@ use tui_input::backend::crossterm::EventHandler;
 
 mod app;
 mod bpf_program;
+mod helpers;
+mod pid_iter {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/bpf/pid_iter.skel.rs"
+    ));
+}
 
 const TABLE_FOOTER: &str =
     "(q) quit | (↑,k) move up | (↓,j) move down | (↵) show graphs | (f) filter | (s) sort";
@@ -90,6 +100,7 @@ fn main() -> Result<()> {
     let kernel_version = KernelVersion::current()?;
     let _owned_fd: OwnedFd;
     let mut stats_enabled_via_procfs = false;
+    let mut iter_link = None;
 
     info!("Starting bpftop...");
     info!("Kernel: {:?}", kernel_version);
@@ -101,7 +112,14 @@ fn main() -> Result<()> {
             return Err(anyhow!("Failed to enable BPF stats via syscall"));
         }
         _owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };
-        info!("Enabled BPF stats via syscall")
+        info!("Enabled BPF stats via syscall");
+
+        // load and attach pid_iter BPF program to get process information
+        let skel_builder = PidIterSkelBuilder::default();
+        let open_skel = skel_builder.open()?;
+        let mut skel = open_skel.load()?;
+        skel.attach()?;
+        iter_link = skel.links.bpftop_iter;
     } else {
         // otherwise, enable via procfs
         // but first check if procfs bpf stats were already enabled
@@ -143,7 +161,7 @@ fn main() -> Result<()> {
 
     // create app and run the draw loop
     let app = App::new();
-    app.start_background_thread();
+    app.start_background_thread(iter_link);
     let res = run_draw_loop(&mut terminal, app);
 
     // restore terminal
@@ -437,6 +455,18 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
                 Cell::from(bpf_program.name),
             ])
             .height(2),
+            Row::new(vec![
+                Cell::from("PIDs".bold()),
+                Cell::from(
+                    bpf_program
+                        .processes
+                        .iter()
+                        .map(|pid| pid.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", "),
+                ),
+            ])
+            .height(2),
         ];
     }
 
@@ -571,36 +601,4 @@ fn render_footer(f: &mut Frame, app: &mut App, area: Rect) {
 
 fn running_as_root() -> bool {
     matches!(nix::unistd::getuid().as_raw(), 0)
-}
-
-fn format_percent(num: f64) -> String {
-    if num < 1.0 {
-        round_to_first_non_zero(num).to_string() + "%"
-    } else {
-        format!("{:.2}%", num)
-    }
-}
-
-fn round_to_first_non_zero(num: f64) -> f64 {
-    if num == 0.0 {
-        return 0.0;
-    }
-
-    let mut multiplier = 1.0;
-    while num * multiplier < 1.0 {
-        multiplier *= 10.0;
-    }
-    (num * multiplier).round() / multiplier
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_round_to_first_non_zero() {
-        assert_eq!(round_to_first_non_zero(0.002323), 0.002);
-        assert_eq!(round_to_first_non_zero(0.0000012), 0.000001);
-        assert_eq!(round_to_first_non_zero(0.00321), 0.003);
-    }
 }
