@@ -242,12 +242,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
-name = "hermit-abi"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0c62115964e08cb8039170eb33c1d0e2388a256930279edca206fff675f82c3"
-
-[[package]]
 name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -339,13 +333,12 @@ dependencies = [
 
 [[package]]
 name = "libbpf-sys"
-version = "1.4.0+v1.4.0"
+version = "1.4.1+v1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4ee5f6d35341ad5d492fd92466c45ff11d6e8104ffa8208f62450875c93e258"
+checksum = "8d45233915cb9e961ddf073fc1e4a31b786d63180eed9b88dba823f688ce2df7"
 dependencies = [
  "cc",
  "nix 0.27.1",
- "num_cpus",
  "pkg-config",
 ]
 
@@ -453,16 +446,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da0df0e5185db44f69b44f26786fe401b6c293d1907744beaa7fa62b2e5a517a"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "num_cpus"
-version = "1.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
-dependencies = [
- "hermit-abi",
- "libc",
 ]
 
 [[package]]
