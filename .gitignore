@@ -2,3 +2,5 @@ build/
 target/
 root/
 deploy.sh
+perf.data
+flamegraph.svg

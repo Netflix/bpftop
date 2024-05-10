@@ -15,7 +15,10 @@
  *  limitations under the License.
  *
  */
-use std::time::Instant;
+use std::{
+    fmt::{self},
+    time::Instant,
+};
 
 #[derive(Clone, Debug)]
 pub struct BpfProgram {
@@ -28,6 +31,20 @@ pub struct BpfProgram {
     pub run_cnt: u64,
     pub instant: Instant,
     pub period_ns: u128,
+    // List of processes that hold a reference to this BPF program
+    pub processes: Vec<Process>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Process {
+    pub pid: i32,
+    pub comm: String,
+}
+
+impl fmt::Display for Process {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} ({})", self.comm, self.pid)
+    }
 }
 
 impl PartialEq for BpfProgram {
@@ -94,6 +111,7 @@ mod tests {
             run_cnt: 2,
             instant: Instant::now(),
             period_ns: 0,
+            processes: vec![],
         };
 
         let prog_2 = BpfProgram {
@@ -106,6 +124,7 @@ mod tests {
             run_cnt: 2,
             instant: Instant::now(),
             period_ns: 0,
+            processes: vec![],
         };
 
         assert_eq!(prog_1, prog_1);
@@ -124,6 +143,7 @@ mod tests {
             run_cnt: 2,
             instant: Instant::now(),
             period_ns: 0,
+            processes: vec![],
         };
         assert_eq!(prog.period_average_runtime_ns(), 100);
     }
@@ -140,6 +160,7 @@ mod tests {
             run_cnt: 5,
             instant: Instant::now(),
             period_ns: 1000,
+            processes: vec![],
         };
         assert_eq!(prog.total_average_runtime_ns(), 200);
     }
@@ -156,6 +177,7 @@ mod tests {
             run_cnt: 2,
             instant: Instant::now(),
             period_ns: 0,
+            processes: vec![],
         };
         assert_eq!(prog.runtime_delta(), 100);
     }
@@ -172,6 +194,7 @@ mod tests {
             run_cnt: 8,
             instant: Instant::now(),
             period_ns: 0,
+            processes: vec![],
         };
         assert_eq!(prog.run_cnt_delta(), 3);
     }
@@ -188,6 +211,7 @@ mod tests {
             run_cnt: 50,
             instant: Instant::now(),
             period_ns: 1_000_000_000,
+            processes: vec![],
         };
         assert_eq!(prog.events_per_second(), 40);
     }
@@ -204,6 +228,7 @@ mod tests {
             run_cnt: 2,
             instant: Instant::now(),
             period_ns: 1_000_000_000,
+            processes: vec![],
         };
         // Calculate expected value: (200_000_000 - 100_000_000) / 1_000_000_000 * 100 = 10.0
         let expected = 10.0;

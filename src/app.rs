@@ -15,19 +15,20 @@
  *  limitations under the License.
  *
  */
+use crate::bpf_program::{BpfProgram, Process};
+use circular_buffer::CircularBuffer;
+use libbpf_rs::{query::ProgInfoIter, Iter, Link};
+use ratatui::widgets::TableState;
 use std::{
     collections::HashMap,
+    io::Read,
+    ptr,
     sync::{Arc, Mutex},
     thread,
     time::{Duration, Instant},
 };
-
-use circular_buffer::CircularBuffer;
-use libbpf_rs::query::ProgInfoIter;
-use ratatui::widgets::TableState;
+use tracing::error;
 use tui_input::Input;
-
-use crate::bpf_program::BpfProgram;
 
 pub struct App {
     pub mode: Mode,
@@ -65,19 +66,71 @@ pub enum SortColumn {
     Descending(usize),
 }
 
+#[repr(C)]
+pub struct PidIterEntry {
+    id: u32,
+    pid: i32,
+    comm: [u8; 16],
+}
+
+fn get_pid_map(link: &Option<Link>) -> HashMap<u32, Vec<Process>> {
+    let mut pid_map: HashMap<u32, Vec<Process>> = HashMap::new();
+
+    // Check if there is a link
+    if let Some(actual_link) = link {
+        let mut iter = match Iter::new(actual_link) {
+            Ok(iter) => iter,
+            Err(e) => {
+                error!("Failed to create iterator: {}", e);
+                return pid_map;
+            }
+        };
+        let struct_size = std::mem::size_of::<PidIterEntry>();
+
+        loop {
+            let mut buffer = vec![0u8; struct_size];
+            match iter.read(&mut buffer) {
+                Ok(0) => break, // No more data to read
+                Ok(n) => {
+                    if n != struct_size {
+                        error!("Expected {} bytes, read {} bytes", buffer.len(), n);
+                        break;
+                    }
+                    let pid_entry: PidIterEntry = unsafe { ptr::read(buffer.as_ptr() as *const _) };
+                    let process = Process {
+                        pid: pid_entry.pid,
+                        comm: String::from_utf8_lossy(&pid_entry.comm).to_string(),
+                    };
+
+                    pid_map
+                        .entry(pid_entry.id)
+                        .or_default()
+                        .push(process);
+                }
+                Err(e) => {
+                    error!("Failed to read from iterator: {}", e);
+                    break;
+                }
+            }
+        }
+    }
+
+    pid_map
+}
+
 impl App {
     pub fn new() -> App {
         App {
             mode: Mode::Table,
             table_state: TableState::default(),
             header_columns: [
-                String::from("ID "),
-                String::from("Type "),
-                String::from("Name "),
-                String::from("Period Avg Runtime (ns) "),
-                String::from("Total Avg Runtime (ns) "),
-                String::from("Events per second "),
-                String::from("Total CPU % "),
+                String::from("ID"),
+                String::from("Type"),
+                String::from("Name"),
+                String::from("Period Avg Runtime (ns)"),
+                String::from("Total Avg Runtime (ns)"),
+                String::from("Events/sec"),
+                String::from("Total CPU %"),
             ],
             items: Arc::new(Mutex::new(vec![])),
             data_buf: Arc::new(Mutex::new(CircularBuffer::<20, PeriodMeasure>::new())),
@@ -91,7 +144,7 @@ impl App {
         }
     }
 
-    pub fn start_background_thread(&self) {
+    pub fn start_background_thread(&self, iter_link: Option<Link>) {
         let items = Arc::clone(&self.items);
         let data_buf = Arc::clone(&self.data_buf);
         let filter = Arc::clone(&self.filter_input);
@@ -109,6 +162,7 @@ impl App {
             let filter_str = filter.value().to_lowercase();
             drop(filter);
 
+            let pid_map = get_pid_map(&iter_link);
             let iter = ProgInfoIter::default();
             for prog in iter {
                 let instant = Instant::now();
@@ -131,6 +185,8 @@ impl App {
                     continue;
                 }
 
+                let processes = pid_map.get(&prog.id).cloned().unwrap_or_default();
+
                 let mut bpf_program = BpfProgram {
                     id: prog.id,
                     bpf_type,
@@ -141,6 +197,7 @@ impl App {
                     run_cnt: prog.run_cnt,
                     instant,
                     period_ns: 0,
+                    processes,
                 };
 
                 if let Some(prev_bpf_program) = map.get(&bpf_program.id) {
@@ -216,7 +273,8 @@ impl App {
         self.max_eps = 0;
         self.max_runtime = 0;
         self.mode = Mode::Graph;
-        *self.graphs_bpf_program.lock().unwrap() = self.selected_program().map(|prog| prog.clone());
+        *self.graphs_bpf_program.lock().unwrap() = self.selected_program().clone();
+
     }
 
     pub fn show_table(&mut self) {
@@ -230,8 +288,10 @@ impl App {
 
     pub fn selected_program(&self) -> Option<BpfProgram> {
         let items = self.items.lock().unwrap();
-        
-        self.table_state.selected().and_then(|i| items.get(i).cloned())
+
+        self.table_state
+            .selected()
+            .and_then(|i| items.get(i).cloned())
     }
 
     pub fn next_program(&mut self) {
@@ -390,6 +450,7 @@ mod tests {
             run_cnt: 2,
             instant: Instant::now(),
             period_ns: 0,
+            processes: vec![],
         };
 
         let prog_2 = BpfProgram {
@@ -402,6 +463,7 @@ mod tests {
             run_cnt: 2,
             instant: Instant::now(),
             period_ns: 0,
+            processes: vec![],
         };
 
         // Add some dummy BpfPrograms to the items vector
@@ -449,6 +511,7 @@ mod tests {
             run_cnt: 2,
             instant: Instant::now(),
             period_ns: 0,
+            processes: vec![],
         };
 
         let prog_2 = BpfProgram {
@@ -461,6 +524,7 @@ mod tests {
             run_cnt: 2,
             instant: Instant::now(),
             period_ns: 0,
+            processes: vec![],
         };
 
         // Add some dummy BpfPrograms to the items vector

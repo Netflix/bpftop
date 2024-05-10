@@ -3,6 +3,9 @@ name = "bpftop"
 version = "0.4.2"
 edition = "2021"
 
+[build-dependencies]
+libbpf-cargo = "0.23.0"
+
 [dependencies]
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
