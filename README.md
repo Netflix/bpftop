@@ -20,15 +20,10 @@ or install via your distribution's package manager:
 
 ### Arch Linux
 
-bpftop is published as an [AUR package](https://aur.archlinux.org/packages/bpftop). To install:
-```
-git clone https://aur.archlinux.org/bpftop.git
-cd bpftop
-makepkg -si
-```
-or with `yay`:
-```
-yay -Sy bpftop
+You can install `bpftop` from the [official repositories](https://archlinux.org/packages/extra/x86_64/bpftop) using [pacman](https://wiki.archlinux.org/title/pacman):
+
+```bash
+pacman -S bpftop
 ```
 
 ## Features
