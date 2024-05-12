@@ -4,7 +4,7 @@ version = "0.5.0"
 edition = "2021"
 
 [build-dependencies]
-libbpf-cargo = "0.23.0"
+libbpf-cargo = "0.23.1"
 
 [dependencies]
 tracing = "0.1.40"
