@@ -39,7 +39,7 @@ use ratatui::widgets::{
 };
 use ratatui::{symbols, Frame, Terminal};
 use std::fs;
-use std::io;
+use std::io::{self, Stdout};
 use std::os::fd::{FromRawFd, OwnedFd};
 use std::panic;
 use std::time::Duration;
@@ -82,6 +82,34 @@ impl From<&BpfProgram> for Row<'_> {
         ];
 
         Row::new(cells).height(height as u16).bottom_margin(1)
+    }
+}
+
+/// Responsible for managing the terminal state and cleaning up when the program exits
+struct TerminalManager {
+    terminal: Terminal<CrosstermBackend<Stdout>>,
+}
+
+impl TerminalManager {
+    fn new() -> Result<Self> {
+        enable_raw_mode()?;
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen)?;
+        let backend = CrosstermBackend::new(stdout);
+        let mut terminal = Terminal::new(backend)?;
+        terminal.hide_cursor()?;
+        Ok(Self { terminal })
+    }
+}
+
+impl Drop for TerminalManager {
+    fn drop(&mut self) {
+        execute!(self.terminal.backend_mut(), LeaveAlternateScreen)
+            .unwrap_or_else(|e| eprintln!("Error leaving alternate screen: {:?}", e));
+        disable_raw_mode().unwrap_or_else(|e| eprintln!("Error disabling raw mode: {:?}", e));
+        self.terminal
+            .show_cursor()
+            .unwrap_or_else(|e| eprintln!("Error showing cursor: {:?}", e));
     }
 }
 
@@ -135,15 +163,7 @@ fn main() -> Result<()> {
         }
     }
 
-    // setup terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-    terminal.clear()?;
-
-    // capture panic to disable BPF stats via procfs and restore terminal
+    // capture panic to disable BPF stats via procfs
     let previous_hook = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {
         if stats_enabled_via_procfs {
@@ -152,23 +172,16 @@ fn main() -> Result<()> {
             }
         }
 
-        if let Err(err) = disable_raw_mode() {
-            eprintln!("Failed to disable raw mode: {:?}", err);
-        }
-
         previous_hook(panic_info);
     }));
+
+    // setup terminal
+    let mut terminal_manager = TerminalManager::new()?;
 
     // create app and run the draw loop
     let app = App::new();
     app.start_background_thread(iter_link);
-    let res = run_draw_loop(&mut terminal, app);
-
-    // restore terminal
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
-    terminal.show_cursor()?;
-    terminal.clear()?;
+    let res = run_draw_loop(&mut terminal_manager.terminal, app);
 
     // disable BPF stats via procfs if needed
     if stats_enabled_via_procfs {
