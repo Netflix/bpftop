@@ -7,10 +7,13 @@ pub use self::imp::*;
 #[allow(dead_code)]
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
+#[allow(clippy::absolute_paths)]
 #[allow(clippy::transmute_ptr_to_ref)]
 #[allow(clippy::upper_case_acronyms)]
 #[warn(single_use_lifetimes)]
 mod imp {
+    #[allow(unused_imports)]
+    use super::*;
     use libbpf_rs::libbpf_sys;
     use libbpf_rs::skel::OpenSkel;
     use libbpf_rs::skel::Skel;
@@ -93,6 +96,8 @@ mod imp {
     }
 
     pub mod pid_iter_types {
+        #[allow(unused_imports)]
+        use super::*;
 
         #[derive(Debug, Clone)]
         #[repr(C)]
