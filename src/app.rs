@@ -120,7 +120,7 @@ fn get_pid_map(link: &Option<Link>) -> HashMap<u32, Vec<Process>> {
 
 impl App {
     pub fn new() -> App {
-        App {
+        let mut app = App {
             mode: Mode::Table,
             table_state: TableState::default(),
             header_columns: [
@@ -141,7 +141,10 @@ impl App {
             selected_column: None,
             graphs_bpf_program: Arc::new(Mutex::new(None)),
             sorted_column: Arc::new(Mutex::new(SortColumn::NoOrder)),
-        }
+        };
+        // Default sort column is Total CPU % in descending order
+        app.sort_column(SortColumn::Descending(6));
+        app
     }
 
     pub fn start_background_thread(&self, iter_link: Option<Link>) {
