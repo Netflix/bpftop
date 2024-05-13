@@ -114,7 +114,7 @@ impl Drop for TerminalManager {
 }
 
 fn main() -> Result<()> {
-    if !running_as_root() {
+    if !nix::unistd::Uid::current().is_root() {
         return Err(anyhow!("This program must be run as root"));
     }
 
@@ -610,8 +610,4 @@ fn render_footer(f: &mut Frame, app: &mut App, area: Rect) {
         }
         _ => {}
     }
-}
-
-fn running_as_root() -> bool {
-    matches!(nix::unistd::getuid().as_raw(), 0)
 }
