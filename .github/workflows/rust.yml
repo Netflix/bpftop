@@ -28,11 +28,16 @@ jobs:
       run: cargo clippy --all --tests --all-features --no-deps
     - name: Build
       run: cargo build --release
-    - name: Create Release and Upload Artficat
+
+    - name: Build RPM
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: ./build-rpm.sh
+
+    - name: Create Release and Upload Artifacts
       uses: ncipollo/release-action@v1.14.0
       if: startsWith(github.ref, 'refs/tags/v')
       with:
-        artifacts: "target/release/bpftop"
+        artifacts: "target/release/bpftop,*-vendor.tar.gz,bpftop-*.rpm"
         draft: true
         allowUpdates: true
         updateOnlyUnreleased: true

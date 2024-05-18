@@ -1,0 +1,33 @@
+FROM fedora:latest
+RUN dnf install -y dnf-plugins-core \
+    mock \
+    rpm-build \
+    rpmdevtools \
+    rust2rpm \
+    cargo \
+    git \
+    sudo \
+    wget && \
+    dnf clean all
+
+ARG VERSION
+
+ENV VERSION=$VERSION
+
+RUN useradd -m builder
+
+RUN echo 'builder ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/builder
+
+RUN usermod -a -G mock builder
+
+USER builder
+
+WORKDIR /home/builder
+
+RUN rpmdev-setuptree
+
+COPY packaging/rpm/bpftop.spec /home/builder/rpmbuild/SPECS/bpftop.spec
+COPY v${VERSION}.tar.gz /home/builder/rpmbuild/SOURCES/
+COPY v${VERSION}-vendor.tar.gz /home/builder/rpmbuild/SOURCES/
+
+ENTRYPOINT ["/bin/bash"]

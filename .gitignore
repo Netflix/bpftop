@@ -4,3 +4,7 @@ root/
 deploy.sh
 perf.data
 flamegraph.svg
+vendor/
+*.tar.gz
+rpmbuild/
+*.rpm
