@@ -16,7 +16,7 @@ echo "Building docker image"
 docker build --build-arg VERSION=$VERSION -t $IMAGE_NAME -f dockerfiles/Dockerfile.rpm .
 
 echo "Running docker container"
-docker run --privileged --name $CONTAINER_NAME -d $IMAGE_NAME tail -f /dev/null
+docker run --privileged --name $CONTAINER_NAME -d $IMAGE_NAME -c "tail -f /dev/null"
 
 echo "Building RPM"
 docker exec $CONTAINER_NAME mock -r fedora-40-x86_64 --buildsrpm --spec /home/builder/rpmbuild/SPECS/bpftop.spec --sources /home/builder/rpmbuild/SOURCES --resultdir /home/builder/rpmbuild/SRPMS
