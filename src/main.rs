@@ -118,9 +118,15 @@ fn main() -> Result<()> {
         return Err(anyhow!("This program must be run as root"));
     }
 
+    // Initialize the journald layer or ignore if not available
+    let journald_layer = match tracing_journald::layer() {
+        Ok(layer) => Some(layer),
+        Err(_) => None,
+    };
+
     // Initialize the tracing subscriber with the journald layer
     let registry = tracing_subscriber::registry()
-        .with(tracing_journald::layer()?)
+        .with(journald_layer)
         .with(tracing_subscriber::filter::LevelFilter::INFO);
     // Try to set this subscriber as the global default
     registry.try_init()?;
