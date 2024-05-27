@@ -203,6 +203,12 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "cfg_aliases"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
+
+[[package]]
+name = "cfg_aliases"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
@@ -497,12 +503,12 @@ dependencies = [
 
 [[package]]
 name = "libbpf-sys"
-version = "1.4.1+v1.4.0"
+version = "1.4.2+v1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d45233915cb9e961ddf073fc1e4a31b786d63180eed9b88dba823f688ce2df7"
+checksum = "800bccc21b216764f96334a241a072b842121843bf679f5a03b0c2c21cb339ed"
 dependencies = [
  "cc",
- "nix 0.27.1",
+ "nix 0.28.0",
  "pkg-config",
 ]
 
@@ -581,12 +587,13 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.27.1"
+version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2eb04e9c688eff1c89d72b407f168cf79bb9e867a9d3323ed6c01519eb9cc053"
+checksum = "ab2156c4fce2f8df6c499cc1c763e4394b7482525bf2a9701c9d79d215f519e4"
 dependencies = [
  "bitflags",
  "cfg-if",
+ "cfg_aliases 0.1.1",
  "libc",
 ]
 
@@ -598,7 +605,7 @@ checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
 dependencies = [
  "bitflags",
  "cfg-if",
- "cfg_aliases",
+ "cfg_aliases 0.2.1",
  "libc",
 ]
 
