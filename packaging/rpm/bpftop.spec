@@ -28,7 +28,6 @@ License:        (0BSD OR MIT OR Apache-2.0) AND (Apache-2.0) AND (Apache-2.0 OR 
 
 URL:            https://github.com/Netflix/%{name}
 Source0:        https://github.com/Netflix/%{name}/archive/refs/tags/v%{version}.tar.gz
-Source1:        https://github.com/Netflix/%{name}/releases/download/v%{version}/v%{version}-vendor.tar.gz
 
 BuildRequires:  cargo-rpm-macros >= 26
 BuildRequires:  elfutils-libelf-devel
@@ -45,16 +44,15 @@ Dynamic real-time view of running eBPF programs.}
 
 %prep
 %autosetup -n %{name}-%{version} -p1
-tar -xzf %{SOURCE1} -C .
-%cargo_prep -v vendor
+%cargo_prep
 
 %generate_buildrequires
+%cargo_generate_buildrequires
 
 %build
 %cargo_build
 %{cargo_license_summary}
 %{cargo_license} > LICENSE.dependencies
-%{cargo_vendor_manifest} > cargo-vendor.txt
 
 %install
 %cargo_install
@@ -67,7 +65,6 @@ tar -xzf %{SOURCE1} -C .
 %files
 %license LICENSE
 %license LICENSE.dependencies
-%license cargo-vendor.txt
 %doc README.md
 %{_bindir}/bpftop
 
