@@ -12,7 +12,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build_test_and_release:
+  build_and_test:
     runs-on: ubuntu-20.04
     permissions:
       contents: write
@@ -36,15 +36,36 @@ jobs:
     - name: Build
       run: cross build --target ${{ matrix.target }} --release
 
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4.3.3
+      with:
+        name: bpftop-${{ matrix.target }}
+        path: target/${{ matrix.target }}/release/bpftop
+        if-no-files-found: error
+  
+  build_rpm_and_release:
+    needs: build_and_test
+    runs-on: ubuntu-20.04
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - uses: actions/checkout@v4.1.1
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4.1.7
+      with:
+        pattern: bpftop-*
+        path: artifacts
+        merge-multiple: true
+    
     - name: Build RPM
-      if: startsWith(github.ref, 'refs/tags/v')
       run: ./build-rpm.sh
 
     - name: Create Release and Upload Artifacts
       uses: ncipollo/release-action@v1.14.0
       if: startsWith(github.ref, 'refs/tags/v')
       with:
-        artifacts: "target/release/bpftop,*-vendor.tar.gz,bpftop-*.rpm"
+        artifacts: "artifacts/*,bpftop-*.rpm"
         draft: true
         allowUpdates: true
         updateOnlyUnreleased: true
