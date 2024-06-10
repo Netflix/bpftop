@@ -26,6 +26,15 @@ You can install `bpftop` from the [official repositories](https://archlinux.org/
 pacman -S bpftop
 ```
 
+### Nix
+You can install bpftop from the NixOS 24.05 stable channel:
+
+```
+nix-channel --add https://nixos.org/channels/nixos-24.05 nixpkgs
+nix-channel --update
+nix-env -iA nixpkgs.bpftop
+```
+
 ## Features
 
 - Displays a list of all running eBPF programs on the host, including the ID, type, and name
