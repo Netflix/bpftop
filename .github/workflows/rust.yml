@@ -12,7 +12,23 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  install_dependencies:
+    runs-on: ubuntu-20.04
+    steps:
+    
+    - name: Install cross
+      run: cargo install cross --git https://github.com/cross-rs/cross
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4.0.2
+      with:
+        path: ~/.cargo/bin
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
   build_and_test:
+    needs: install_dependencies
     runs-on: ubuntu-20.04
     permissions:
       contents: write
@@ -24,8 +40,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4.1.1
 
-    - name: Install cross
-      run: cargo install cross --git https://github.com/cross-rs/cross
+    - name: Restore dependencies from cache
+      uses: actions/cache@v4.0.2
+      with:
+        path: ~/.cargo/bin
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
 
     - name: Test
       run: cross test --target ${{ matrix.target }}
