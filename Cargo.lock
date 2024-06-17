@@ -467,19 +467,16 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libbpf-cargo"
-version = "0.23.2"
+version = "0.23.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a601f00ddb9297129c28f8c4352bad3260815eeefeff0d51b0bddf285ba6d31"
+checksum = "71d93a9c394b847104335470b262e8c82794a17d379c70d33388578ac4f3c8d2"
 dependencies = [
  "anyhow",
  "cargo_metadata",
  "clap",
  "libbpf-rs",
  "memmap2",
- "num_enum",
  "regex",
- "scroll",
- "scroll_derive",
  "semver",
  "serde",
  "serde_json",
@@ -842,23 +839,6 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
-
-[[package]]
-name = "scroll"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04c565b551bafbef4157586fa379538366e4385d42082f255bfd96e4fe8519da"
-
-[[package]]
-name = "scroll_derive"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1db149f81d46d2deba7cd3c50772474707729550221e69588478ebf9ada425ae"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.61",
-]
 
 [[package]]
 name = "semver"
