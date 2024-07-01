@@ -21,4 +21,4 @@ ratatui = { version = "0.27.0", default-features = false, features = ['crossterm
 nix = { version = "0.29.0", features = ["user"] }
 circular-buffer = "0.1.7"
 procfs = "0.16.0"
-tui-input = "0.8.0"
+tui-input = "0.9.0"
