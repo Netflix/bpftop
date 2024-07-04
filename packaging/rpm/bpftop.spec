@@ -30,12 +30,6 @@ URL:            https://github.com/Netflix/%{name}
 Source0:        https://github.com/Netflix/%{name}/archive/refs/tags/v%{version}.tar.gz
 
 BuildRequires:  cargo-rpm-macros >= 26
-BuildRequires:  elfutils-libelf-devel
-BuildRequires:  zlib-devel
-BuildRequires:  clang
-
-Requires:       elfutils-libelf
-Requires:       zlib
 
 %global _description %{expand:
 Dynamic real-time view of running eBPF programs.}
