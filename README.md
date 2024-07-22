@@ -18,12 +18,20 @@ or install via your distribution's package manager:
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/bpftop.svg)](https://repology.org/project/bpftop/versions)
 
-### Arch Linux
+### Fedora
 
-You can install `bpftop` from the [official repositories](https://archlinux.org/packages/extra/x86_64/bpftop) using [pacman](https://wiki.archlinux.org/title/pacman):
+You can install `bpftop` from the [official repositories](https://src.fedoraproject.org/rpms/bpftop) using [dnf](https://dnf.readthedocs.io/en/latest/):
 
 ```bash
-pacman -S bpftop
+sudo dnf install bpftop
+```
+
+### Arch Linux
+
+You can install `bpftop` from the [official repositories](https://packages.fedoraproject.org/pkgs/bpftop/bpftop/) using [pacman](https://wiki.archlinux.org/title/pacman):
+
+```bash
+sudo pacman -S bpftop
 ```
 
 ### Nix
