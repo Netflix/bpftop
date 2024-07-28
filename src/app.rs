@@ -276,8 +276,7 @@ impl App {
         self.max_eps = 0;
         self.max_runtime = 0;
         self.mode = Mode::Graph;
-        *self.graphs_bpf_program.lock().unwrap() = self.selected_program().clone();
-
+        self.graphs_bpf_program.lock().unwrap().clone_from(&self.selected_program());
     }
 
     pub fn show_table(&mut self) {
