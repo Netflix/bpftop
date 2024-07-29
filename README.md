@@ -8,10 +8,10 @@
 
 ## Installation
 
-To download the latest release of `bpftop`, use the following command:
+To download the latest x86_64 release of `bpftop`, use the following command:
 
 ```bash
-curl -fLJ https://github.com/Netflix/bpftop/releases/latest/download/bpftop -o bpftop && chmod +x bpftop
+curl -fLJ https://github.com/Netflix/bpftop/releases/latest/download/bpftop-x86_64-unknown-linux-gnu -o bpftop && chmod +x bpftop
 ```
 
 or install via your distribution's package manager:
