@@ -15,7 +15,7 @@ tracing-subscriber = "0.3.18"
 tracing-journald = "0.3.0"
 libbpf-rs = "0.23.3"
 libbpf-sys = "1.4.3"
-crossterm = "0.27.0"
+crossterm = "0.28.1"
 anyhow = "1.0.86"
 ratatui = { version = "0.27.0", default-features = false, features = ['crossterm'] }
 nix = { version = "0.29.0", features = ["user"] }
