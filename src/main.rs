@@ -271,7 +271,7 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
 }
 
 fn ui(f: &mut Frame, app: &mut App) {
-    let rects = Layout::vertical([Constraint::Min(5), Constraint::Length(3)]).split(f.size());
+    let rects = Layout::vertical([Constraint::Min(5), Constraint::Length(3)]).split(f.area());
 
     match app.mode {
         Mode::Table | Mode::Filter | Mode::Sort => render_table(f, app, rects[0]),
@@ -357,8 +357,8 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         .bounds([0.0, cpu_y_max])
         .labels(vec![
             "0%".into(),
-            ((cpu_y_max / 2.0).to_string() + "%").into(),
-            (cpu_y_max.to_string() + "%").into(),
+            ((cpu_y_max / 2.0).to_string() + "%"),
+            (cpu_y_max.to_string() + "%"),
         ]);
     let cpu_chart = Chart::new(cpu_datasets)
         .block(
@@ -388,8 +388,8 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         .bounds([0.0, eps_y_max])
         .labels(vec![
             "0".into(),
-            ((eps_y_max / 2.0).to_string()).into(),
-            (eps_y_max.to_string()).into(),
+            ((eps_y_max / 2.0).to_string()),
+            (eps_y_max.to_string()),
         ]);
     let eps_chart = Chart::new(eps_datasets)
         .block(
@@ -419,8 +419,8 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         .bounds([0.0, runtime_y_max])
         .labels(vec![
             "0".into(),
-            ((runtime_y_max / 2.0).to_string()).into(),
-            (runtime_y_max.to_string()).into(),
+            ((runtime_y_max / 2.0).to_string()),
+            (runtime_y_max.to_string()),
         ]);
     let runtime_chart = Chart::new(runtime_datasets)
         .block(
@@ -596,10 +596,10 @@ fn render_footer(f: &mut Frame, app: &mut App, area: Rect) {
             f.render_widget(filter_footer, split_area[0]);
 
             // Displays cursor when inputting
-            f.set_cursor(
+            f.set_cursor_position((
                 split_area[0].x + filter_input.visual_cursor() as u16 + 2,
                 split_area[0].y + 1,
-            );
+            ));
             drop(filter_input);
         }
         Mode::Sort => {
