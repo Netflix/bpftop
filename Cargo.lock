@@ -125,7 +125,7 @@ dependencies = [
  "circular-buffer",
  "crossterm",
  "libbpf-cargo",
- "libbpf-rs",
+ "libbpf-rs 0.24.2",
  "libbpf-sys",
  "nix",
  "procfs",
@@ -478,7 +478,7 @@ dependencies = [
  "anyhow",
  "cargo_metadata",
  "clap",
- "libbpf-rs",
+ "libbpf-rs 0.23.3",
  "memmap2",
  "regex",
  "semver",
@@ -497,6 +497,18 @@ dependencies = [
  "libbpf-sys",
  "libc",
  "strum_macros 0.24.3",
+ "vsprintf",
+]
+
+[[package]]
+name = "libbpf-rs"
+version = "0.24.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecc6eb0468f4b691117c49673da2b833bd2fefbf05a4876a86ad93defd088f12"
+dependencies = [
+ "bitflags",
+ "libbpf-sys",
+ "libc",
  "vsprintf",
 ]
 
