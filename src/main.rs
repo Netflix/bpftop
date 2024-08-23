@@ -40,6 +40,7 @@ use ratatui::widgets::{
 use ratatui::{symbols, Frame, Terminal};
 use std::fs;
 use std::io::{self, Stdout};
+use std::mem::MaybeUninit;
 use std::os::fd::{FromRawFd, OwnedFd};
 use std::panic;
 use std::time::Duration;
@@ -150,7 +151,8 @@ fn main() -> Result<()> {
 
         // load and attach pid_iter BPF program to get process information
         let skel_builder = PidIterSkelBuilder::default();
-        let open_skel = skel_builder.open()?;
+        let mut open_object = MaybeUninit::uninit();
+        let open_skel = skel_builder.open(&mut open_object)?;
         let mut skel = open_skel.load()?;
         skel.attach()?;
         iter_link = skel.links.bpftop_iter;
