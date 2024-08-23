@@ -15,7 +15,7 @@
  *  limitations under the License.
  *
  */
-use crate::bpf_program::{BpfProgram, Process};
+use crate::{bpf_program::{BpfProgram, Process}, helpers::program_type_to_string};
 use circular_buffer::CircularBuffer;
 use libbpf_rs::{query::ProgInfoIter, Iter, Link};
 use ratatui::widgets::TableState;
@@ -102,10 +102,7 @@ fn get_pid_map(link: &Option<Link>) -> HashMap<u32, Vec<Process>> {
                         comm: String::from_utf8_lossy(&pid_entry.comm).to_string(),
                     };
 
-                    pid_map
-                        .entry(pid_entry.id)
-                        .or_default()
-                        .push(process);
+                    pid_map.entry(pid_entry.id).or_default().push(process);
                 }
                 Err(e) => {
                     error!("Failed to read from iterator: {}", e);
@@ -180,7 +177,7 @@ impl App {
                 }
 
                 // Skip bpf program if it does not match filter
-                let bpf_type = prog.ty.to_string();
+                let bpf_type = program_type_to_string(prog.ty);
                 if !filter_str.is_empty()
                     && !bpf_type.to_lowercase().contains(&filter_str)
                     && !prog_name.to_lowercase().contains(&filter_str)
@@ -276,7 +273,10 @@ impl App {
         self.max_eps = 0;
         self.max_runtime = 0;
         self.mode = Mode::Graph;
-        self.graphs_bpf_program.lock().unwrap().clone_from(&self.selected_program());
+        self.graphs_bpf_program
+            .lock()
+            .unwrap()
+            .clone_from(&self.selected_program());
     }
 
     pub fn show_table(&mut self) {
