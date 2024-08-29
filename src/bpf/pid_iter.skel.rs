@@ -18,6 +18,7 @@ mod imp {
     use libbpf_rs::skel::OpenSkel;
     use libbpf_rs::skel::Skel;
     use libbpf_rs::skel::SkelBuilder;
+    use libbpf_rs::AsRawLibbpf as _;
     use libbpf_rs::MapCore as _;
     fn build_skel_config(
     ) -> libbpf_rs::Result<libbpf_rs::__internal_skel::ObjectSkeletonConfig<'static>> {
@@ -40,6 +41,7 @@ mod imp {
                     object,
                 )
             };
+            #[allow(clippy::never_loop)]
             for map in object.maps_mut() {
                 let name = map.name().to_str().ok_or_else(|| {
                     libbpf_rs::Error::from(std::io::Error::new(
@@ -47,6 +49,7 @@ mod imp {
                         "map has invalid name",
                     ))
                 })?;
+                #[allow(clippy::match_single_binding)]
                 match name {
                     _ => panic!("encountered unexpected map: `{name}`"),
                 }
@@ -71,6 +74,7 @@ mod imp {
             let object = unsafe {
                 std::mem::transmute::<&mut libbpf_rs::Object, &'obj mut libbpf_rs::Object>(object)
             };
+            #[allow(clippy::never_loop)]
             for map in object.maps_mut() {
                 let name = map.name().to_str().ok_or_else(|| {
                     libbpf_rs::Error::from(std::io::Error::new(
@@ -78,6 +82,7 @@ mod imp {
                         "map has invalid name",
                     ))
                 })?;
+                #[allow(clippy::match_single_binding)]
                 match name {
                     _ => panic!("encountered unexpected map: `{name}`"),
                 }
@@ -133,7 +138,7 @@ mod imp {
             Self {
                 bpftop_iter: unsafe {
                     libbpf_rs::ProgramMut::new_mut(
-                        libbpf_rs::AsRawLibbpf::as_libbpf_object(&open_progs.bpftop_iter).as_mut(),
+                        open_progs.bpftop_iter.as_libbpf_object().as_mut(),
                     )
                 },
                 _phantom: std::marker::PhantomData,
@@ -183,27 +188,17 @@ mod imp {
         pub obj_builder: libbpf_rs::ObjectBuilder,
     }
 
-    impl<'obj> SkelBuilder<'obj> for PidIterSkelBuilder {
-        type Output = OpenPidIterSkel<'obj>;
-        fn open(
+    impl<'obj> PidIterSkelBuilder {
+        fn open_opts_impl(
             self,
-            object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
-        ) -> libbpf_rs::Result<OpenPidIterSkel<'obj>> {
-            let opts =
-                unsafe { libbpf_rs::AsRawLibbpf::as_libbpf_object(&self.obj_builder).as_ref() };
-            self.open_opts(*opts, object)
-        }
-
-        fn open_opts(
-            self,
-            open_opts: libbpf_sys::bpf_object_open_opts,
+            open_opts: *const libbpf_sys::bpf_object_open_opts,
             object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
         ) -> libbpf_rs::Result<OpenPidIterSkel<'obj>> {
             let skel_config = build_skel_config()?;
-            let skel_ptr = libbpf_rs::AsRawLibbpf::as_libbpf_object(&skel_config);
+            let skel_ptr = skel_config.as_libbpf_object();
 
             let ret =
-                unsafe { libbpf_sys::bpf_object__open_skeleton(skel_ptr.as_ptr(), &open_opts) };
+                unsafe { libbpf_sys::bpf_object__open_skeleton(skel_ptr.as_ptr(), open_opts) };
             if ret != 0 {
                 return Err(libbpf_rs::Error::from_raw_os_error(-ret));
             }
@@ -235,6 +230,24 @@ mod imp {
             };
 
             Ok(skel)
+        }
+    }
+
+    impl<'obj> SkelBuilder<'obj> for PidIterSkelBuilder {
+        type Output = OpenPidIterSkel<'obj>;
+        fn open(
+            self,
+            object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
+        ) -> libbpf_rs::Result<OpenPidIterSkel<'obj>> {
+            self.open_opts_impl(std::ptr::null(), object)
+        }
+
+        fn open_opts(
+            self,
+            open_opts: libbpf_sys::bpf_object_open_opts,
+            object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
+        ) -> libbpf_rs::Result<OpenPidIterSkel<'obj>> {
+            self.open_opts_impl(&open_opts, object)
         }
 
         fn object_builder(&self) -> &libbpf_rs::ObjectBuilder {
@@ -3312,7 +3325,7 @@ mod imp {
     impl<'obj> OpenSkel<'obj> for OpenPidIterSkel<'obj> {
         type Output = PidIterSkel<'obj>;
         fn load(self) -> libbpf_rs::Result<PidIterSkel<'obj>> {
-            let skel_ptr = libbpf_rs::AsRawLibbpf::as_libbpf_object(&self.skel_config).as_ptr();
+            let skel_ptr = self.skel_config.as_libbpf_object().as_ptr();
 
             let ret = unsafe { libbpf_sys::bpf_object__load_skeleton(skel_ptr) };
             if ret != 0 {
@@ -3382,7 +3395,7 @@ mod imp {
             self.obj.as_mut()
         }
         fn attach(&mut self) -> libbpf_rs::Result<()> {
-            let skel_ptr = libbpf_rs::AsRawLibbpf::as_libbpf_object(&self.skel_config).as_ptr();
+            let skel_ptr = self.skel_config.as_libbpf_object().as_ptr();
             let ret = unsafe { libbpf_sys::bpf_object__attach_skeleton(skel_ptr) };
             if ret != 0 {
                 return Err(libbpf_rs::Error::from_raw_os_error(-ret));
