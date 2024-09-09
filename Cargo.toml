@@ -16,7 +16,7 @@ tracing-journald = "0.3.0"
 libbpf-rs = "0.24.4"
 libbpf-sys = "1.4.5"
 crossterm = "0.28.1"
-anyhow = "1.0.86"
+anyhow = "1.0.87"
 ratatui = { version = "0.28.1", default-features = false, features = ['crossterm'] }
 nix = { version = "0.29.0", features = ["user"] }
 circular-buffer = "0.1.7"
