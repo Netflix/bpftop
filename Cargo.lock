@@ -221,9 +221,9 @@ dependencies = [
 
 [[package]]
 name = "circular-buffer"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da987586004ae7c43b7df5e3f7693775068522e1086f8d9b2d74c778a0f43313"
+checksum = "659bc3241f5e098a83ef22f74dc6d35403a2a0538a3372027d763ada53649261"
 
 [[package]]
 name = "clap"
