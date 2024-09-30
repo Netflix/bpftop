@@ -19,6 +19,6 @@ crossterm = "0.28.1"
 anyhow = "1.0.87"
 ratatui = { version = "0.28.1", default-features = false, features = ['crossterm'] }
 nix = { version = "0.29.0", features = ["user"] }
-circular-buffer = "0.1.7"
+circular-buffer = "0.1.9"
 procfs = "0.16.0"
 tui-input = "0.10.1"
