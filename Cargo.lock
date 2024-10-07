@@ -483,9 +483,9 @@ dependencies = [
 
 [[package]]
 name = "libbpf-rs"
-version = "0.24.4"
+version = "0.24.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d51b943363864472bf306570a7076cbfa84571a403b98f59d18af4c4135271ca"
+checksum = "bafb274d5b387bfe6e91e95b2481891c0cfcd7ee4bb48e992439becd0eb3e36c"
 dependencies = [
  "bitflags",
  "libbpf-sys",
