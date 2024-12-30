@@ -35,10 +35,10 @@ sudo pacman -S bpftop
 ```
 
 ### Nix
-You can install bpftop from the NixOS 24.05 stable channel:
+You can install bpftop from the NixOS 24.11 stable channel:
 
 ```
-nix-channel --add https://nixos.org/channels/nixos-24.05 nixpkgs
+nix-channel --add https://nixos.org/channels/nixos-24.11 nixpkgs
 nix-channel --update
 nix-env -iA nixpkgs.bpftop
 ```
