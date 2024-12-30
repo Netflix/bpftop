@@ -10,7 +10,7 @@ authors = ["Jose Fernandez <josef@netflix.com>"]
 libbpf-cargo = "0.24.6"
 
 [dependencies]
-tracing = "0.1.40"
+tracing = "0.1.41"
 tracing-subscriber = "0.3.18"
 tracing-journald = "0.3.0"
 libbpf-rs = "0.24.8"
