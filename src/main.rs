@@ -550,7 +550,7 @@ fn render_table(f: &mut Frame, app: &mut App, area: Rect) {
                 .borders(Borders::ALL)
                 .title(" eBPF programs "),
         )
-        .highlight_style(selected_style)
+        .row_highlight_style(selected_style)
         .highlight_symbol(">> ");
     f.render_stateful_widget(t, area, &mut app.table_state);
 }
