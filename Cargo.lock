@@ -129,7 +129,7 @@ dependencies = [
  "libbpf-sys",
  "nix",
  "procfs",
- "ratatui 0.28.1",
+ "ratatui",
  "tracing",
  "tracing-journald",
  "tracing-subscriber",
@@ -713,27 +713,6 @@ dependencies = [
 
 [[package]]
 name = "ratatui"
-version = "0.28.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdef7f9be5c0122f890d58bdf4d964349ba6a6161f705907526d891efabba57d"
-dependencies = [
- "bitflags",
- "cassowary",
- "compact_str",
- "crossterm",
- "instability",
- "itertools 0.13.0",
- "lru",
- "paste",
- "strum",
- "strum_macros",
- "unicode-segmentation",
- "unicode-truncate",
- "unicode-width 0.1.13",
-]
-
-[[package]]
-name = "ratatui"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eabd94c2f37801c20583fc49dd5cd6b0ba68c716787c2dd6ed18571e1e63117b"
@@ -1068,7 +1047,7 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ffde6d8fcffe86b617018ca9b2171d673b41def44ebf802de203d2f2c598d3de"
 dependencies = [
- "ratatui 0.29.0",
+ "ratatui",
  "unicode-width 0.2.0",
 ]
 
