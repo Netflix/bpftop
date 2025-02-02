@@ -20,6 +20,7 @@ use anyhow::{anyhow, Context, Result};
 use app::SortColumn;
 use app::{App, Mode};
 use bpf_program::BpfProgram;
+use clap::Parser;
 use crossterm::event::{self, poll, Event, KeyCode, KeyModifiers};
 use crossterm::execute;
 use crossterm::terminal::{
@@ -69,6 +70,21 @@ const SORT_INFO_FOOTER: &str = "(Esc) back";
 
 const PROCFS_BPF_STATS_ENABLED: &str = "/proc/sys/kernel/bpf_stats_enabled";
 
+#[derive(Parser, Debug)]
+#[command(
+    name = env!("CARGO_PKG_NAME"),
+    version = env!("CARGO_PKG_VERSION"),
+    long_version = concat!(
+        env!("CARGO_PKG_VERSION"), " created by ",
+        "Jose Fernandez"
+    ),
+    author = "Jose Fernandez",
+    about = env!("CARGO_PKG_DESCRIPTION"),
+    override_usage = "sudo bpftop"
+)]
+struct Bpftop {
+}
+
 impl From<&BpfProgram> for Row<'_> {
     fn from(bpf_program: &BpfProgram) -> Self {
         let height = 1;
@@ -115,6 +131,8 @@ impl Drop for TerminalManager {
 }
 
 fn main() -> Result<()> {
+    let _ = Bpftop::parse();
+    
     if !nix::unistd::Uid::current().is_root() {
         return Err(anyhow!("This program must be run as root"));
     }
