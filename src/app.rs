@@ -18,6 +18,7 @@
 use crate::{bpf_program::{BpfProgram, Process}, helpers::program_type_to_string};
 use circular_buffer::CircularBuffer;
 use libbpf_rs::{query::ProgInfoIter, Iter, Link};
+use ratatui::widgets::ScrollbarState;
 use ratatui::widgets::TableState;
 use std::{
     collections::HashMap,
@@ -33,6 +34,8 @@ use tui_input::Input;
 pub struct App {
     pub mode: Mode,
     pub table_state: TableState,
+    pub vertical_scroll: usize,
+    pub vertical_scroll_state: ScrollbarState,
     pub header_columns: [String; 7],
     pub items: Arc<Mutex<Vec<BpfProgram>>>,
     pub data_buf: Arc<Mutex<CircularBuffer<20, PeriodMeasure>>>,
@@ -119,6 +122,8 @@ impl App {
     pub fn new() -> App {
         let mut app = App {
             mode: Mode::Table,
+            vertical_scroll: 0,
+            vertical_scroll_state: ScrollbarState::new(0),
             table_state: TableState::default(),
             header_columns: [
                 String::from("ID"),
@@ -302,14 +307,16 @@ impl App {
             let i = match self.table_state.selected() {
                 Some(i) => {
                     if i >= items.len() - 1 {
-                        0
+                        items.len() - 1
                     } else {
+                        self.vertical_scroll = self.vertical_scroll.saturating_add(1);
                         i + 1
                     }
                 }
                 None => 0,
             };
             self.table_state.select(Some(i));
+            self.vertical_scroll_state = self.vertical_scroll_state.position(self.vertical_scroll);
         }
     }
 
@@ -319,14 +326,16 @@ impl App {
             let i = match self.table_state.selected() {
                 Some(i) => {
                     if i == 0 {
-                        items.len() - 1
+                        0
                     } else {
+                        self.vertical_scroll = self.vertical_scroll.saturating_sub(1);
                         i - 1
                     }
                 }
-                None => items.len() - 1,
+                None => return,  // do nothing if table_state == None && previous_program() called
             };
             self.table_state.select(Some(i));
+            self.vertical_scroll_state = self.vertical_scroll_state.position(self.vertical_scroll);
         }
     }
 
@@ -473,19 +482,24 @@ mod tests {
         app.items.lock().unwrap().push(prog_2.clone());
 
         // Initially no item is selected
-        assert_eq!(app.selected_program(), None);
+        assert_eq!(app.selected_program(), None, "expected no program");
+        assert_eq!(app.vertical_scroll, 0, "expected init with 0, got: {}", app.vertical_scroll);
 
         // After calling next, the first item should be selected
         app.next_program();
-        assert_eq!(app.selected_program(), Some(prog_1.clone()));
+        assert_eq!(app.selected_program(), Some(prog_1.clone()), "expected prog_1");
+        assert_eq!(app.vertical_scroll, 0, "expected scroll 0, got: {}", app.vertical_scroll);
 
         // After calling next again, the second item should be selected
         app.next_program();
-        assert_eq!(app.selected_program(), Some(prog_2.clone()));
+        assert_eq!(app.selected_program(), Some(prog_2.clone()), "expected prog_2");
+        assert_eq!(app.vertical_scroll, 1, "expected scroll 1, got: {}", app.vertical_scroll);
 
-        // After calling next again, we should wrap around to the first item
+        // After calling next again, the second item should still be selected without wrapping
         app.next_program();
-        assert_eq!(app.selected_program(), Some(prog_1.clone()));
+        assert_eq!(app.selected_program(), Some(prog_2.clone()), "expected prog_2; no wrap around");
+        assert_eq!(app.vertical_scroll, 1, "expected scroll 1, got: {}", app.vertical_scroll);
+
     }
 
     #[test]
@@ -494,10 +508,17 @@ mod tests {
 
         // Initially no item is selected
         assert_eq!(app.selected_program(), None);
+        
+        // Initially ScrollbarState is 0
+        assert_eq!(app.vertical_scroll_state, ScrollbarState::new(0), "unexpected ScrollbarState");
+        assert_eq!(app.vertical_scroll, 0, "expected 0 vertical_scroll, got: {}", app.vertical_scroll);
 
         // After calling previous, no item should be selected
         app.previous_program();
         assert_eq!(app.selected_program(), None);
+
+        assert_eq!(app.vertical_scroll_state, ScrollbarState::new(0), "unexpected ScrollbarState");
+        assert_eq!(app.vertical_scroll, 0, "expected 0 vertical_scroll, got: {}", app.vertical_scroll);
     }
 
     #[test]
@@ -534,19 +555,27 @@ mod tests {
         app.items.lock().unwrap().push(prog_2.clone());
 
         // Initially no item is selected
-        assert_eq!(app.selected_program(), None);
+        assert_eq!(app.selected_program(), None, "expected no program");
+        assert_eq!(app.vertical_scroll, 0, "expected init with 0");
 
-        // After calling previous, the last item should be selected
+        // After calling previous with no table state, nothing should be selected
         app.previous_program();
-        assert_eq!(app.selected_program(), Some(prog_2.clone()));
+        assert_eq!(app.selected_program(), None, "expected None");
+        assert_eq!(app.vertical_scroll, 0, "still 0, no wrapping");
 
-        // After calling previous again, the first item should be selected
+        // After calling previous again, still nothing should be selected
         app.previous_program();
-        assert_eq!(app.selected_program(), Some(prog_1.clone()));
+        assert_eq!(app.selected_program(), None, "still None");
+        assert_eq!(app.vertical_scroll, 0, "still 0, no wrapping");
 
-        // After calling previous again, we should wrap around to the last item
+        app.next_program();  // populate table state and expect prog_1 selected
+        assert_eq!(app.selected_program(), Some(prog_1.clone()), "expected prog_1");
+        assert_eq!(app.vertical_scroll, 0, "expected scroll 0");
+
+        // After calling previous again, prog_1 should still be selected (0th index)
         app.previous_program();
-        assert_eq!(app.selected_program(), Some(prog_2.clone()));
+        assert_eq!(app.selected_program(), Some(prog_1.clone()), "still expecting prog_1");
+        assert_eq!(app.vertical_scroll, 0, "still 0, no wrapping");
     }
 
     #[test]
