@@ -36,12 +36,13 @@ use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::{
     Axis, Block, BorderType, Borders, Cell, Chart, Dataset, GraphType, Padding, Paragraph, Row,
-    Table,
+    Scrollbar, ScrollbarOrientation, Table,
 };
 use ratatui::{symbols, Frame, Terminal};
 use std::fs;
 use std::io::{self, Stdout};
 use std::mem::MaybeUninit;
+use std::ops::{Add, Mul};
 use std::os::fd::{FromRawFd, OwnedFd};
 use std::panic;
 use std::time::Duration;
@@ -70,6 +71,12 @@ const SORT_INFO_FOOTER: &str = "(Esc) back";
 
 const PROCFS_BPF_STATS_ENABLED: &str = "/proc/sys/kernel/bpf_stats_enabled";
 
+const TABLE_HEADER_HEIGHT: u16 = 1;
+const TABLE_HEADER_MARGIN: u16 = 1;
+const TABLE_ROW_HEIGHT: u16 = 1;
+const TABLE_ROW_MARGIN: u16 = 1;
+const TABLE_FOOTER_HEIGHT: u16 = 1; // derived from `TABLE_FOOTER`
+
 #[derive(Parser, Debug)]
 #[command(
     name = env!("CARGO_PKG_NAME"),
@@ -82,12 +89,10 @@ const PROCFS_BPF_STATS_ENABLED: &str = "/proc/sys/kernel/bpf_stats_enabled";
     about = env!("CARGO_PKG_DESCRIPTION"),
     override_usage = "sudo bpftop"
 )]
-struct Bpftop {
-}
+struct Bpftop {}
 
 impl From<&BpfProgram> for Row<'_> {
     fn from(bpf_program: &BpfProgram) -> Self {
-        let height = 1;
         let cells = vec![
             Cell::from(bpf_program.id.to_string()),
             Cell::from(bpf_program.bpf_type.to_string()),
@@ -98,7 +103,7 @@ impl From<&BpfProgram> for Row<'_> {
             Cell::from(format_percent(bpf_program.cpu_time_percent())),
         ];
 
-        Row::new(cells).height(height as u16).bottom_margin(1)
+        Row::new(cells).height(TABLE_ROW_HEIGHT).bottom_margin(TABLE_ROW_MARGIN)
     }
 }
 
@@ -132,7 +137,7 @@ impl Drop for TerminalManager {
 
 fn main() -> Result<()> {
     let _ = Bpftop::parse();
-    
+
     if !nix::unistd::Uid::current().is_root() {
         return Err(anyhow!("This program must be run as root"));
     }
@@ -551,6 +556,18 @@ fn render_table(f: &mut Frame, app: &mut App, area: Rect) {
 
     let rows: Vec<Row> = items.iter().map(|item| item.into()).collect();
 
+    let content_height: u16 = TABLE_HEADER_HEIGHT
+        .add(TABLE_HEADER_MARGIN)
+        .add((rows.len() as u16).mul(TABLE_ROW_HEIGHT.add(TABLE_ROW_MARGIN)))
+        .add(TABLE_FOOTER_HEIGHT);
+    if content_height > area.height {
+        // content exceeds screen size; display scrollbar
+        app.vertical_scroll_state = app.vertical_scroll_state.content_length(rows.len());
+    } else {
+        // content fits on screen; hide scrollbar
+        app.vertical_scroll_state = app.vertical_scroll_state.content_length(0);
+    }
+
     let widths = [
         Constraint::Percentage(5),
         Constraint::Percentage(17),
@@ -571,6 +588,11 @@ fn render_table(f: &mut Frame, app: &mut App, area: Rect) {
         .row_highlight_style(selected_style)
         .highlight_symbol(">> ");
     f.render_stateful_widget(t, area, &mut app.table_state);
+    f.render_stateful_widget(
+        Scrollbar::new(ScrollbarOrientation::VerticalRight).thumb_symbol("░"),
+        area,
+        &mut app.vertical_scroll_state,
+    );
 }
 
 fn render_footer(f: &mut Frame, app: &mut App, area: Rect) {
