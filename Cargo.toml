@@ -1,6 +1,6 @@
 [package]
 name = "bpftop"
-version = "0.5.2"
+version = "0.6.0"
 edition = "2021"
 description = "Dynamic real-time view of running eBPF programs"
 license = "Apache-2.0"
