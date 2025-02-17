@@ -22,4 +22,4 @@ nix = { version = "0.29.0", features = ["user"] }
 circular-buffer = "1.0.0"
 procfs = "0.17.0"
 tui-input = "0.11.1"
-clap = { version = "4.5.28", features = ["derive"] }
+clap = { version = "4.5.30", features = ["derive"] }
