@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
     tags:
-      - 'v*'  # Trigger the workflow on push to tags like v1.0, v20.15.10
+      - 'v*'  # Trigger the workflow on push to tags like v1.0, v20.15.10,
   pull_request:
     branches: [ "main" ]
 
