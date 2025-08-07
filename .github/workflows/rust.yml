@@ -13,14 +13,14 @@ env:
 
 jobs:
   install_dependencies:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
-    
+
     - name: Install cross
       run: cargo install cross --git https://github.com/cross-rs/cross
-    
+
     - name: Cache dependencies
-      uses: actions/cache@v4.0.2
+      uses: actions/cache@v4.2.3
       with:
         path: ~/.cargo/bin
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
@@ -29,7 +29,7 @@ jobs:
 
   build_and_test:
     needs: install_dependencies
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     strategy:
@@ -41,7 +41,7 @@ jobs:
     - uses: actions/checkout@v4.1.1
 
     - name: Restore dependencies from cache
-      uses: actions/cache@v4.0.2
+      uses: actions/cache@v4.2.3
       with:
         path: ~/.cargo/bin
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
@@ -56,7 +56,7 @@ jobs:
 
     - name: Build
       run: cross build --target ${{ matrix.target }} --release
-    
+
     - name: Rename binary
       run: mv target/${{ matrix.target }}/release/bpftop target/${{ matrix.target }}/release/bpftop-${{ matrix.target }}
 
@@ -66,10 +66,10 @@ jobs:
         name: bpftop-${{ matrix.target }}
         path: target/${{ matrix.target }}/release/bpftop-${{ matrix.target }}
         if-no-files-found: error
-  
+
   create_release:
     needs: build_and_test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
