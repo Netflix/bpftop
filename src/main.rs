@@ -89,7 +89,11 @@ const TABLE_FOOTER_HEIGHT: u16 = 1; // derived from `TABLE_FOOTER`
     about = env!("CARGO_PKG_DESCRIPTION"),
     override_usage = "sudo bpftop"
 )]
-struct Bpftop {}
+struct Bpftop {
+    /// Delay between screen refreshes (seconds)
+    #[arg(short = 'd', long = "delay", default_value = "1", value_parser = clap::value_parser!(u64).range(1..3600))]
+    delay: u64,
+}
 
 impl From<&BpfProgram> for Row<'_> {
     fn from(bpf_program: &BpfProgram) -> Self {
@@ -136,7 +140,7 @@ impl Drop for TerminalManager {
 }
 
 fn main() -> Result<()> {
-    let _ = Bpftop::parse();
+    let args = Bpftop::parse();
 
     if !nix::unistd::Uid::current().is_root() {
         return Err(anyhow!("This program must be run as root"));
@@ -210,7 +214,7 @@ fn main() -> Result<()> {
     let mut terminal_manager = TerminalManager::new()?;
 
     // create app and run the draw loop
-    let app = App::new();
+    let app = App::new(args.delay);
     app.start_background_thread(iter_link);
     let res = run_draw_loop(&mut terminal_manager.terminal, app);
 

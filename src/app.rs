@@ -46,6 +46,7 @@ pub struct App {
     pub selected_column: Option<usize>,
     pub graphs_bpf_program: Arc<Mutex<Option<BpfProgram>>>,
     sorted_column: Arc<Mutex<SortColumn>>,
+    delay_seconds: u64,
 }
 
 pub struct PeriodMeasure {
@@ -119,7 +120,7 @@ fn get_pid_map(link: &Option<Link>) -> HashMap<u32, Vec<Process>> {
 }
 
 impl App {
-    pub fn new() -> App {
+    pub fn new(delay_seconds: u64) -> App {
         let mut app = App {
             mode: Mode::Table,
             vertical_scroll: 0,
@@ -143,6 +144,7 @@ impl App {
             selected_column: None,
             graphs_bpf_program: Arc::new(Mutex::new(None)),
             sorted_column: Arc::new(Mutex::new(SortColumn::NoOrder)),
+            delay_seconds,
         };
         // Default sort column is Total CPU % in descending order
         app.sort_column(SortColumn::Descending(6));
@@ -155,6 +157,7 @@ impl App {
         let filter = Arc::clone(&self.filter_input);
         let sort_col = Arc::clone(&self.sorted_column);
         let graphs_bpf_program = Arc::clone(&self.graphs_bpf_program);
+        let delay_seconds = self.delay_seconds;
 
         thread::spawn(move || loop {
             let loop_start = Instant::now();
@@ -261,12 +264,12 @@ impl App {
             drop(items);
             drop(sort_col);
 
-            // Adjust sleep duration to maintain a 1-second sample period, accounting for loop processing time.
+            // Adjust sleep duration to maintain a delay_seconds sample period, accounting for loop processing time.
             let elapsed = loop_start.elapsed();
-            let sleep = if elapsed > Duration::from_secs(1) {
-                Duration::from_secs(1)
+            let sleep = if elapsed > Duration::from_secs(delay_seconds) {
+                Duration::from_secs(delay_seconds)
             } else {
-                Duration::from_secs(1) - elapsed
+                Duration::from_secs(delay_seconds) - elapsed
             };
             thread::sleep(sleep);
         });
@@ -438,7 +441,7 @@ mod tests {
 
     #[test]
     fn test_next_program_with_empty() {
-        let mut app = App::new();
+        let mut app = App::new(1);
 
         // Initially no item is selected
         assert_eq!(app.selected_program(), None);
@@ -450,7 +453,7 @@ mod tests {
 
     #[test]
     fn test_next_program() {
-        let mut app = App::new();
+        let mut app = App::new(1);
         let prog_1 = BpfProgram {
             id: 1,
             bpf_type: "test".to_string(),
@@ -504,7 +507,7 @@ mod tests {
 
     #[test]
     fn test_previous_program_with_empty() {
-        let mut app = App::new();
+        let mut app = App::new(1);
 
         // Initially no item is selected
         assert_eq!(app.selected_program(), None);
@@ -523,7 +526,7 @@ mod tests {
 
     #[test]
     fn test_previous_program() {
-        let mut app = App::new();
+        let mut app = App::new(1);
         let prog_1 = BpfProgram {
             id: 1,
             bpf_type: "test".to_string(),
@@ -580,7 +583,7 @@ mod tests {
 
     #[test]
     fn test_toggle_graphs() {
-        let mut app = App::new();
+        let mut app = App::new(1);
 
         // Initially, UI should be in table mode
         assert_eq!(app.mode, Mode::Table);
