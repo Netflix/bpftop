@@ -7,7 +7,7 @@ license = "Apache-2.0"
 authors = ["Jose Fernandez <josef@netflix.com>"]
 
 [build-dependencies]
-libbpf-cargo = "0.24.8"
+libbpf-cargo = "0.25.0"
 
 [dependencies]
 tracing = "0.1.41"
