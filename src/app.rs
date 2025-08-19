@@ -306,7 +306,7 @@ impl App {
 
     pub fn next_program(&mut self) {
         let items = self.items.lock().unwrap();
-        if items.len() > 0 {
+        if !items.is_empty() {
             let i = match self.table_state.selected() {
                 Some(i) => {
                     if i >= items.len() - 1 {
@@ -325,7 +325,7 @@ impl App {
 
     pub fn previous_program(&mut self) {
         let items = self.items.lock().unwrap();
-        if items.len() > 0 {
+        if !items.is_empty() {
             let i = match self.table_state.selected() {
                 Some(i) => {
                     if i == 0 {

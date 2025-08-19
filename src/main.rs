@@ -128,11 +128,11 @@ impl TerminalManager {
 impl Drop for TerminalManager {
     fn drop(&mut self) {
         execute!(self.terminal.backend_mut(), LeaveAlternateScreen)
-            .unwrap_or_else(|e| eprintln!("Error leaving alternate screen: {:?}", e));
-        disable_raw_mode().unwrap_or_else(|e| eprintln!("Error disabling raw mode: {:?}", e));
+            .unwrap_or_else(|e| eprintln!("Error leaving alternate screen: {e:?}"));
+        disable_raw_mode().unwrap_or_else(|e| eprintln!("Error disabling raw mode: {e:?}"));
         self.terminal
             .show_cursor()
-            .unwrap_or_else(|e| eprintln!("Error showing cursor: {:?}", e));
+            .unwrap_or_else(|e| eprintln!("Error showing cursor: {e:?}"));
     }
 }
 
@@ -144,10 +144,7 @@ fn main() -> Result<()> {
     }
 
     // Initialize the journald layer or ignore if not available
-    let journald_layer = match tracing_journald::layer() {
-        Ok(layer) => Some(layer),
-        Err(_) => None,
-    };
+    let journald_layer = tracing_journald::layer().ok();
 
     // Initialize the tracing subscriber with the journald layer
     let registry = tracing_subscriber::registry()
@@ -187,8 +184,7 @@ fn main() -> Result<()> {
             info!("BPF stats already enabled via procfs");
         } else {
             fs::write(PROCFS_BPF_STATS_ENABLED, b"1").context(format!(
-                "Failed to enable BPF stats via {}",
-                PROCFS_BPF_STATS_ENABLED
+                "Failed to enable BPF stats via {PROCFS_BPF_STATS_ENABLED}"
             ))?;
             stats_enabled_via_procfs = true;
             info!("Enabled BPF stats via procfs");
@@ -200,7 +196,7 @@ fn main() -> Result<()> {
     panic::set_hook(Box::new(move |panic_info| {
         if stats_enabled_via_procfs {
             if let Err(err) = procs_bfs_stats_disable() {
-                eprintln!("Failed to disable BPF stats via procfs: {:?}", err);
+                eprintln!("Failed to disable BPF stats via procfs: {err:?}");
             }
         }
 
@@ -230,15 +226,14 @@ fn main() -> Result<()> {
 
 fn procs_bfs_stats_disable() -> Result<()> {
     fs::write(PROCFS_BPF_STATS_ENABLED, b"0").context(format!(
-        "Failed to disable BPF stats via {}",
-        PROCFS_BPF_STATS_ENABLED
+        "Failed to disable BPF stats via {PROCFS_BPF_STATS_ENABLED}"
     ))?;
     Ok(())
 }
 
 fn procfs_bpf_stats_is_enabled() -> Result<bool> {
     fs::read_to_string(PROCFS_BPF_STATS_ENABLED)
-        .context(format!("Failed to read from {}", PROCFS_BPF_STATS_ENABLED))
+        .context(format!("Failed to read from {PROCFS_BPF_STATS_ENABLED}"))
         .map(|value| value.trim() == "1")
 }
 
@@ -358,7 +353,7 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
     let mut avg_cpu = 0.0;
     let mut avg_eps = 0.0;
     let mut avg_runtime = 0.0;
-    if data_buf.len() > 0 {
+    if !data_buf.is_empty() {
         avg_cpu = total_cpu / data_buf.len() as f64;
         avg_eps = total_eps as f64 / data_buf.len() as f64;
         avg_runtime = total_runtime as f64 / data_buf.len() as f64;
