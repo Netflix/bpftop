@@ -8,3 +8,4 @@ vendor/
 *.tar.gz
 rpmbuild/
 *.rpm
+src/bpf/pid_iter.skel.rs
