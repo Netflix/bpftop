@@ -55,10 +55,7 @@ mod app;
 mod bpf_program;
 mod helpers;
 mod pid_iter {
-    include!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/src/bpf/pid_iter.skel.rs"
-    ));
+    include!(concat!(env!("OUT_DIR"), "/pid_iter.skel.rs"));
 }
 
 const TABLE_FOOTER: &str =
