@@ -15,14 +15,13 @@
  *  limitations under the License.
  *
  */
-
 use libbpf_rs::ProgramType;
 
 pub fn format_percent(num: f64) -> String {
     if num < 1.0 {
         round_to_first_non_zero(num).to_string() + "%"
     } else {
-        format!("{:.2}%", num)
+        format!("{num:.2}%")
     }
 }
 
