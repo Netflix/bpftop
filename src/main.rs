@@ -169,14 +169,6 @@ fn main() -> Result<()> {
         }
         _owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };
         info!("Enabled BPF stats via syscall");
-
-        // load and attach pid_iter BPF program to get process information
-        let skel_builder = PidIterSkelBuilder::default();
-        let mut open_object = MaybeUninit::uninit();
-        let open_skel = skel_builder.open(&mut open_object)?;
-        let mut skel = open_skel.load()?;
-        skel.attach()?;
-        iter_link = skel.links.bpftop_iter;
     } else {
         // otherwise, enable via procfs
         // but first check if procfs bpf stats were already enabled
@@ -189,6 +181,12 @@ fn main() -> Result<()> {
             stats_enabled_via_procfs = true;
             info!("Enabled BPF stats via procfs");
         }
+    }
+
+    // load and attach pid_iter BPF program to get process information
+    match load_pid_iter(&mut iter_link) {
+        Ok(()) => info!("Successfully loaded pid_iter BPF program"),
+        Err(e) => info!("Failed to load pid_iter BPF program: {}, continuing without process information", e),
     }
 
     // capture panic to disable BPF stats via procfs
@@ -235,6 +233,30 @@ fn procfs_bpf_stats_is_enabled() -> Result<bool> {
     fs::read_to_string(PROCFS_BPF_STATS_ENABLED)
         .context(format!("Failed to read from {PROCFS_BPF_STATS_ENABLED}"))
         .map(|value| value.trim() == "1")
+}
+
+fn load_pid_iter(iter_link: &mut Option<libbpf_rs::Link>) -> Result<()> {
+    // Temporarily suppress libbpf stderr output during loading attempt
+    let prev_print_fn = unsafe {
+        libbpf_sys::libbpf_set_print(None)
+    };
+    
+    let result = (|| -> Result<()> {
+        let skel_builder = PidIterSkelBuilder::default();
+        let mut open_object = MaybeUninit::uninit();
+        let open_skel = skel_builder.open(&mut open_object)?;
+        let mut skel = open_skel.load()?;
+        skel.attach()?;
+        *iter_link = skel.links.bpftop_iter;
+        Ok(())
+    })();
+    
+    // Restore previous libbpf print function
+    unsafe {
+        libbpf_sys::libbpf_set_print(prev_print_fn);
+    }
+    
+    result
 }
 
 fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<()> {
