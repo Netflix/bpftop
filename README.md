@@ -45,17 +45,25 @@ nix-env -iA nixpkgs.bpftop
 
 ## Features
 
-- Displays a list of all running eBPF programs on the host, including the ID, type, and name
-- Shows the period and total average runtime for each eBPF program.
-- Calculates the events per second and estimated CPU utilization for each eBPF program
-- Provides a graphical view of the average runtime, events per second, and estimated CPU utilization over a 10-second time period
-- Dynamically updates the list every second
-- Enables the statistics-gathering function only while it is active
+- **Real-time monitoring**: Displays a list of all running eBPF programs with ID, type, and name
+- **Performance metrics**: Shows period and total average runtime, events per second, and estimated CPU utilization
+- **Interactive navigation**: Navigate using arrow keys (↑/↓) or vim-style keys (j/k)
+- **Time-series graphs**: Press Enter on a program to view graphical representations of performance metrics over time
+- **Program filtering**: Press 'f' to filter programs by name or type
+- **Column sorting**: Press 's' to sort by different columns (ascending/descending)
+- **Process information**: Displays process names and PIDs that reference each eBPF program
+- **Scrollbar navigation**: Automatically shows scrollbar when the program list exceeds terminal height
+- **Customizable refresh rate**: Set update interval with `-d/--delay` option (1-3600 seconds)
+- **Backward compatibility**: Supports Linux kernels from version 5.8+ (older kernels via procfs)
+- **Minimal overhead**: Enables statistics gathering only while active, automatically disables on exit
+- **Logging integration**: Logs to systemd journal when available
 
 ## Prerequisites
 
 - `bpftop` requires `sudo` privileges to run.
+- Linux kernel version 5.8 or later (older kernels supported via procfs fallback)
 - The binary is dynamically linked to `libz` and `libelf`, so these libraries must be present on the systems where you intend to run `bpftop`.
+- For logging functionality: systemd/journald (optional, will gracefully fallback if not available)
 
 ## Usage
 
@@ -64,6 +72,60 @@ Run the following command to start `bpftop` on your host:
 ```bash
 sudo ./bpftop
 ```
+
+### Command-line Options
+
+- `-d, --delay <SECONDS>`: Set refresh interval (1-3600 seconds, default: 1)
+- `-h, --help`: Show help information
+- `-V, --version`: Show version information
+
+Examples:
+```bash
+# Start with default 1-second refresh
+sudo ./bpftop
+
+# Update every 2 seconds
+sudo ./bpftop -d 2
+
+# Update every 5 seconds
+sudo ./bpftop --delay 5
+```
+
+### Interactive Controls
+
+Once running, use these keyboard shortcuts:
+
+**Navigation:**
+- `↑/↓` or `k/j`: Navigate up/down through the program list
+- `Enter`: Switch to graphical view for the selected program
+- `q`: Quit the application
+
+**Features:**
+- `f`: Filter programs by name or type
+- `s`: Sort programs by different columns (use arrow keys to select column and direction)
+
+**In graph view:**
+- `Enter` or `q`: Return to the main program list
+
+### Viewing Process Information
+
+When you select a program, `bpftop` displays additional information including:
+- Process names and PIDs that reference the selected eBPF program
+- Detailed performance metrics and graphs
+
+### Logging
+
+`bpftop` logs operational information to the systemd journal when available. You can view these logs using:
+
+```bash
+journalctl _COMM=bpftop
+```
+
+Common log entries include:
+- Application startup and shutdown
+- Kernel version information
+- BPF statistics enablement status
+- Error conditions and debugging information
 
 ## Relate links
 
@@ -77,6 +139,79 @@ sudo ./bpftop
 
 ## Building from source
 
-1. Install and setup [cross](https://github.com/cross-rs/cross)
-2. Run `cross build --release` for x86_64
-3. Run `cross build --target=aarch64-unknown-linux-gnu --release` for Arm64
+### Prerequisites
+Install required dependencies:
+```bash
+# Ubuntu/Debian
+sudo apt-get install -y zlib1g-dev libelf-dev clang libbpf-dev
+
+# Fedora/RHEL
+sudo dnf install -y zlib-devel elfutils-libelf-devel clang libbpf-devel
+```
+
+### Build Instructions
+
+**For native builds:**
+```bash
+# Development build
+cargo build
+
+# Release build
+cargo build --release
+```
+
+**For cross-compilation:**
+1. Install and setup [cross](https://github.com/cross-rs/cross):
+   ```bash
+   cargo install cross --git https://github.com/cross-rs/cross
+   ```
+
+2. Build for target architectures:
+   ```bash
+   # x86_64
+   cross build --release --target x86_64-unknown-linux-gnu
+   
+   # ARM64
+   cross build --release --target aarch64-unknown-linux-gnu
+   ```
+
+Note: Cross-compilation builds may take 15+ minutes on first run due to Docker image building.
+
+## Troubleshooting
+
+### Common Issues
+
+**"This program must be run as root"**
+- Ensure you're running with `sudo` privileges. eBPF statistics collection requires root access.
+
+**No programs displayed**
+- This is normal if no eBPF programs are currently loaded on your system
+- Try loading an eBPF program (e.g., using `bpftrace`, `bcc-tools`, or other eBPF utilities) to see them in bpftop
+
+**Terminal display issues**
+- Ensure your terminal supports ANSI colors and has sufficient size
+- Minimum recommended terminal size: 80x24 characters
+
+**Missing libraries error**
+- Install the required system dependencies: `libz` and `libelf`
+- On Ubuntu/Debian: `sudo apt-get install zlib1g-dev libelf-dev`
+
+### Logging and Debugging
+
+View application logs:
+```bash
+# View all bpftop logs
+journalctl _COMM=bpftop
+
+# Follow logs in real-time
+journalctl _COMM=bpftop -f
+
+# View logs from last boot
+journalctl _COMM=bpftop -b
+```
+
+The logs include information about:
+- Application startup and shutdown
+- Kernel compatibility checks
+- BPF statistics enablement method used
+- Any errors or warnings encountered
