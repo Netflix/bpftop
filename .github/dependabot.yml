@@ -4,12 +4,17 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: weekly
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 0
     ignore:
-      # These are peer deps of Cargo and should not be automatically bumped
-      - dependency-name: "semver"
-      - dependency-name: "crates-io"
+      # Only security updates for Rust dependencies
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor", "version-update:semver-major"]
     rebase-strategy: "disabled"
