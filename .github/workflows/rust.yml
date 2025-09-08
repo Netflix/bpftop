@@ -82,7 +82,7 @@ jobs:
         merge-multiple: true
 
     - name: Create Release and Upload Artifacts
-      uses: ncipollo/release-action@v1.18.0
+      uses: ncipollo/release-action@v1.20.0
       with:
         artifacts: artifacts/bpftop-*
         draft: true
