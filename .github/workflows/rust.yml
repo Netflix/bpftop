@@ -61,7 +61,7 @@ jobs:
       run: mv target/${{ matrix.target }}/release/bpftop target/${{ matrix.target }}/release/bpftop-${{ matrix.target }}
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v4.6.2
+      uses: actions/upload-artifact@v5.0.0
       with:
         name: bpftop-${{ matrix.target }}
         path: target/${{ matrix.target }}/release/bpftop-${{ matrix.target }}
