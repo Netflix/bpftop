@@ -263,7 +263,7 @@ fn run_draw_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result
     loop {
         terminal.draw(|f| ui(f, &mut app))?;
 
-        // wait up to 100ms for a keyboard event
+        // wait up to 50ms for a keyboard event
         if poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
                 match app.mode {
