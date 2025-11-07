@@ -127,7 +127,7 @@ Common log entries include:
 - BPF statistics enablement status
 - Error conditions and debugging information
 
-## Relate links
+## Related links
 
 * [Announcement blog post](https://netflixtechblog.com/announcing-bpftop-streamlining-ebpf-performance-optimization-6a727c1ae2e5)
 * [LWN.net](https://lwn.net/Articles/963767/)
