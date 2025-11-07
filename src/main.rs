@@ -193,7 +193,7 @@ fn main() -> Result<()> {
     let previous_hook = panic::take_hook();
     panic::set_hook(Box::new(move |panic_info| {
         if stats_enabled_via_procfs {
-            if let Err(err) = procs_bfs_stats_disable() {
+            if let Err(err) = procfs_bpf_stats_disable() {
                 eprintln!("Failed to disable BPF stats via procfs: {err:?}");
             }
         }
@@ -211,7 +211,7 @@ fn main() -> Result<()> {
 
     // disable BPF stats via procfs if needed
     if stats_enabled_via_procfs {
-        procs_bfs_stats_disable()?;
+        procfs_bpf_stats_disable()?;
     }
 
     #[allow(clippy::question_mark)]
@@ -222,7 +222,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn procs_bfs_stats_disable() -> Result<()> {
+fn procfs_bpf_stats_disable() -> Result<()> {
     fs::write(PROCFS_BPF_STATS_ENABLED, b"0").context(format!(
         "Failed to disable BPF stats via {PROCFS_BPF_STATS_ENABLED}"
     ))?;
