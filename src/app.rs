@@ -184,16 +184,19 @@ impl App {
                     continue;
                 }
 
+                let processes = pid_map.get(&prog.id).cloned().unwrap_or_default();
+
                 // Skip bpf program if it does not match filter
                 let bpf_type = program_type_to_string(prog.ty);
                 if !filter_str.is_empty()
                     && !bpf_type.to_lowercase().contains(&filter_str)
                     && !prog_name.to_lowercase().contains(&filter_str)
+                    && !processes
+                        .iter()
+                        .any(|p| p.comm.to_lowercase().contains(&filter_str))
                 {
                     continue;
                 }
-
-                let processes = pid_map.get(&prog.id).cloned().unwrap_or_default();
 
                 let mut bpf_program = BpfProgram {
                     id: prog.id,

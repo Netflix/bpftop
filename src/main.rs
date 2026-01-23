@@ -650,7 +650,7 @@ fn render_footer(f: &mut Frame, app: &mut App, area: Rect) {
                     .padding(Padding::horizontal(1))
                     .borders(Borders::ALL)
                     .border_type(BorderType::Double)
-                    .title(" Filter Name/Type "),
+                    .title(" Filter Name/Type/Process "),
             );
 
             f.render_widget(filter_footer, split_area[0]);
