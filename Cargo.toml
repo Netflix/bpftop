@@ -23,3 +23,6 @@ circular-buffer = "1.1.0"
 procfs = "0.18.0"
 tui-input = "0.14.0"
 clap = { version = "4.5.45", features = ["derive"] }
+netlink-packet-core = "0.8.1"
+netlink-packet-route = { git ="https://github.com/rust-netlink/netlink-packet-route", rev = "890416dac6ea473a04917a2061a67b7c3ddca877" }
+netlink-sys = "0.8.8"

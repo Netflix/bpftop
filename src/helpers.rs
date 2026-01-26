@@ -15,7 +15,7 @@
  *  limitations under the License.
  *
  */
-use libbpf_rs::ProgramType;
+use libbpf_rs::{ProgramAttachType::{self, *}, ProgramType, query::LinkTypeInfo};
 
 pub fn format_percent(num: f64) -> String {
     if num < 1.0 {
@@ -37,7 +37,7 @@ pub fn round_to_first_non_zero(num: f64) -> f64 {
     (num * multiplier).round() / multiplier
 }
 
-pub fn program_type_to_string(program_type: ProgramType) -> String {
+pub const fn program_type_as_str(program_type: &ProgramType) -> &'static str {
     match program_type {
         ProgramType::Unspec => "Unspec",
         ProgramType::SocketFilter => "SocketFilter",
@@ -73,7 +73,65 @@ pub fn program_type_to_string(program_type: ProgramType) -> String {
         ProgramType::Syscall => "Syscall",
         _ => "Unknown",
     }
-    .to_string()
+}
+
+pub(crate) fn link_type_as_str(link_type: &LinkTypeInfo) -> &'static str {
+    match link_type {
+        LinkTypeInfo::RawTracepoint(_) => "RawTracepoint",
+        LinkTypeInfo::Tracing(_) => "Tracing",
+        LinkTypeInfo::Cgroup(_) => "Cgroup",
+        LinkTypeInfo::Iter => "Iter",
+        LinkTypeInfo::NetNs(_) => "NetNs",
+        LinkTypeInfo::Unknown => "Unknown",
+    }
+}
+
+pub(crate) fn attach_type_as_str(attach_type: ProgramAttachType) -> &'static str {
+    match attach_type {
+        CgroupInetIngress => "CgroupInetIngress",
+        CgroupInetEgress => "CgroupInetEgress",
+        CgroupInetSockCreate => "CgroupInetSockCreate",
+        CgroupSockOps => "CgroupSockOps",
+        SkSkbStreamParser => "SkSkbStreamParser",
+        SkSkbStreamVerdict => "SkSkbStreamVerdict",
+        CgroupDevice => "CgroupDevice",
+        SkMsgVerdict => "SkMsgVerdict",
+        CgroupInet4Bind => "CgroupInet4Bind",
+        CgroupInet6Bind => "CgroupInet6Bind",
+        CgroupInet4Connect => "CgroupInet4Connect",
+        CgroupInet6Connect => "CgroupInet6Connect",
+        CgroupInet4PostBind => "CgroupInet4PostBind",
+        CgroupInet6PostBind => "CgroupInet6PostBind",
+        CgroupUdp4Sendmsg => "CgroupUdp4Sendmsg",
+        CgroupUdp6Sendmsg => "CgroupUdp6Sendmsg",
+        LircMode2 => "LircMode2",
+        FlowDissector => "FlowDissector",
+        CgroupSysctl => "CgroupSysctl",
+        CgroupUdp4Recvmsg => "CgroupUdp4Recvmsg",
+        CgroupUdp6Recvmsg => "CgroupUdp6Recvmsg",
+        CgroupGetsockopt => "CgroupGetsockopt",
+        CgroupSetsockopt => "CgroupSetsockopt",
+        TraceRawTp => "TraceRawTp",
+        TraceFentry => "TraceFentry",
+        TraceFexit => "TraceFexit",
+        ModifyReturn => "ModifyReturn",
+        LsmMac => "LsmMac",
+        TraceIter => "TraceIter",
+        CgroupInet4Getpeername => "CgroupInet4Getpeername",
+        CgroupInet6Getpeername => "CgroupInet6Getpeername",
+        CgroupInet4Getsockname => "CgroupInet4Getsockname",
+        CgroupInet6Getsockname => "CgroupInet6Getsockname",
+        XdpDevmap => "XdpDevmap",
+        CgroupInetSockRelease => "CgroupInetSockRelease",
+        XdpCpumap => "XdpCpumap",
+        SkLookup => "SkLookup",
+        Xdp => "Xdp",
+        SkSkbVerdict => "SkSkbVerdict",
+        SkReuseportSelect => "SkReuseportSelect",
+        SkReuseportSelectOrMigrate => "SkReuseportSelectOrMigrate",
+        PerfEvent => "PerfEvent",
+        _ => "Unknown",
+    }
 }
 
 #[cfg(test)]
@@ -89,7 +147,19 @@ mod tests {
 
     #[test]
     fn test_program_type_to_string() {
-        let str = program_type_to_string(ProgramType::CgroupSkb);
+        let str = program_type_as_str(&ProgramType::CgroupSkb);
         assert_eq!(str, "CgroupSkb");
+    }
+
+    #[test]
+    fn test_link_type_to_string() {
+        let str = link_type_as_str(&LinkTypeInfo::Iter);
+        assert_eq!(str, "Iter");
+    }
+
+    #[test]
+    fn test_attach_type_to_string() {
+        let str = attach_type_as_str(ProgramAttachType::Xdp);
+        assert_eq!(str, "Xdp");
     }
 }
