@@ -15,11 +15,13 @@
  *  limitations under the License.
  *
  */
-use crate::helpers::format_percent;
+use crate::{
+    app::{App, Mode, SortColumn},
+    bpf_attachment::get_prog_attachments,
+    bpf_program::BpfProgram,
+    helpers::format_percent,
+};
 use anyhow::{anyhow, Context, Result};
-use app::SortColumn;
-use app::{App, Mode};
-use bpf_program::BpfProgram;
 use clap::Parser;
 use crossterm::event::{self, poll, Event, KeyCode, KeyModifiers};
 use crossterm::execute;
@@ -52,6 +54,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tui_input::backend::crossterm::EventHandler;
 
 mod app;
+mod bpf_attachment;
 mod bpf_program;
 mod helpers;
 mod pid_iter {
@@ -250,12 +253,12 @@ fn load_pid_iter(iter_link: &mut Option<libbpf_rs::Link>) -> Result<()> {
         *iter_link = skel.links.bpftop_iter;
         Ok(())
     })();
-    
+
     // Restore previous libbpf print function
     unsafe {
         libbpf_sys::libbpf_set_print(prev_print_fn);
     }
-    
+
     result
 }
 
@@ -505,18 +508,15 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
             Row::new(vec![
                 Cell::from("Program ID".bold()),
                 Cell::from(bpf_program.id.to_string()),
-            ])
-            .height(2),
+            ]),
             Row::new(vec![
                 Cell::from("Program Type".bold()),
                 Cell::from(bpf_program.bpf_type),
-            ])
-            .height(2),
+            ]),
             Row::new(vec![
                 Cell::from("Program Name".bold()),
                 Cell::from(bpf_program.name),
-            ])
-            .height(2),
+            ]),
             Row::new(vec![
                 Cell::from("PIDs".bold()),
                 Cell::from(
@@ -527,9 +527,12 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
                         .collect::<Vec<String>>()
                         .join(", "),
                 ),
-            ])
-            .height(2),
+            ]),
         ];
+
+        for attach_info in get_prog_attachments(bpf_program.id, &bpf_program.bpf_type).into_iter().flatten() {
+            items.extend(attach_info.render());
+        }
     }
 
     let table = Table::new(items, widths)

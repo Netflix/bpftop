@@ -15,7 +15,7 @@
  *  limitations under the License.
  *
  */
-use crate::{bpf_program::{BpfProgram, Process}, helpers::program_type_to_string};
+use crate::{bpf_program::{BpfProgram, Process}, helpers::program_type_as_str};
 use circular_buffer::CircularBuffer;
 use libbpf_rs::{query::ProgInfoIter, Iter, Link};
 use ratatui::widgets::ScrollbarState;
@@ -187,7 +187,7 @@ impl App {
                 let processes = pid_map.get(&prog.id).cloned().unwrap_or_default();
 
                 // Skip bpf program if it does not match filter
-                let bpf_type = program_type_to_string(prog.ty);
+                let bpf_type = program_type_as_str(&prog.ty);
                 if !filter_str.is_empty()
                     && !bpf_type.to_lowercase().contains(&filter_str)
                     && !prog_name.to_lowercase().contains(&filter_str)
@@ -459,7 +459,7 @@ mod tests {
         let mut app = App::new(1);
         let prog_1 = BpfProgram {
             id: 1,
-            bpf_type: "test".to_string(),
+            bpf_type: "test",
             name: "test".to_string(),
             prev_runtime_ns: 100,
             run_time_ns: 200,
@@ -472,7 +472,7 @@ mod tests {
 
         let prog_2 = BpfProgram {
             id: 2,
-            bpf_type: "test".to_string(),
+            bpf_type: "test",
             name: "test".to_string(),
             prev_runtime_ns: 100,
             run_time_ns: 200,
@@ -505,7 +505,6 @@ mod tests {
         app.next_program();
         assert_eq!(app.selected_program(), Some(prog_2.clone()), "expected prog_2; no wrap around");
         assert_eq!(app.vertical_scroll, 1, "expected scroll 1, got: {}", app.vertical_scroll);
-
     }
 
     #[test]
@@ -514,7 +513,7 @@ mod tests {
 
         // Initially no item is selected
         assert_eq!(app.selected_program(), None);
-        
+
         // Initially ScrollbarState is 0
         assert_eq!(app.vertical_scroll_state, ScrollbarState::new(0), "unexpected ScrollbarState");
         assert_eq!(app.vertical_scroll, 0, "expected 0 vertical_scroll, got: {}", app.vertical_scroll);
@@ -532,7 +531,7 @@ mod tests {
         let mut app = App::new(1);
         let prog_1 = BpfProgram {
             id: 1,
-            bpf_type: "test".to_string(),
+            bpf_type: "test",
             name: "test".to_string(),
             prev_runtime_ns: 100,
             run_time_ns: 200,
@@ -545,7 +544,7 @@ mod tests {
 
         let prog_2 = BpfProgram {
             id: 2,
-            bpf_type: "test".to_string(),
+            bpf_type: "test",
             name: "test".to_string(),
             prev_runtime_ns: 100,
             run_time_ns: 200,
