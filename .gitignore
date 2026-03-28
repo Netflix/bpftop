@@ -9,3 +9,4 @@ vendor/
 rpmbuild/
 *.rpm
 src/bpf/pid_iter.skel.rs
+.direnv/
