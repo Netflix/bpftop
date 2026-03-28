@@ -75,7 +75,7 @@ jobs:
     steps:
     - name: Download all artifacts
       id: download_artifacts
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         pattern: bpftop-*
         path: artifacts
