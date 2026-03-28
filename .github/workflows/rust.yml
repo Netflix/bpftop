@@ -20,7 +20,7 @@ jobs:
       run: cargo install cross --git https://github.com/cross-rs/cross
 
     - name: Cache dependencies
-      uses: actions/cache@v5.0.3
+      uses: actions/cache@v5
       with:
         path: ~/.cargo/bin
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
@@ -38,10 +38,10 @@ jobs:
           - x86_64-unknown-linux-gnu
           - aarch64-unknown-linux-gnu
     steps:
-    - uses: actions/checkout@v6.0.2
+    - uses: actions/checkout@v6
 
     - name: Restore dependencies from cache
-      uses: actions/cache@v5.0.3
+      uses: actions/cache@v5
       with:
         path: ~/.cargo/bin
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
@@ -61,7 +61,7 @@ jobs:
       run: mv target/${{ matrix.target }}/release/bpftop target/${{ matrix.target }}/release/bpftop-${{ matrix.target }}
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v6.0.0
+      uses: actions/upload-artifact@v6
       with:
         name: bpftop-${{ matrix.target }}
         path: target/${{ matrix.target }}/release/bpftop-${{ matrix.target }}
@@ -75,14 +75,14 @@ jobs:
     steps:
     - name: Download all artifacts
       id: download_artifacts
-      uses: actions/download-artifact@v7.0.0
+      uses: actions/download-artifact@v7
       with:
         pattern: bpftop-*
         path: artifacts
         merge-multiple: true
 
     - name: Create Release and Upload Artifacts
-      uses: ncipollo/release-action@v1.20.0
+      uses: ncipollo/release-action@v1
       with:
         artifacts: artifacts/bpftop-*
         draft: true
