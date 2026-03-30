@@ -15,7 +15,7 @@
  *  limitations under the License.
  *
  */
-use crate::helpers::format_percent;
+use crate::{bpf_attachment::render_prog_attachments, helpers::format_percent};
 use anyhow::{anyhow, Context, Result};
 use app::SortColumn;
 use app::{App, Mode};
@@ -30,7 +30,7 @@ use libbpf_rs::skel::{OpenSkel, Skel, SkelBuilder};
 use libbpf_sys::bpf_enable_stats;
 use pid_iter::PidIterSkelBuilder;
 use procfs::KernelVersion;
-use ratatui::backend::{Backend, CrosstermBackend};
+use ratatui::{backend::{Backend, CrosstermBackend}, widgets::List};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::Line;
@@ -52,6 +52,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tui_input::backend::crossterm::EventHandler;
 
 mod app;
+mod bpf_attachment;
 mod bpf_program;
 mod helpers;
 mod pid_iter {
@@ -250,12 +251,12 @@ fn load_pid_iter(iter_link: &mut Option<libbpf_rs::Link>) -> Result<()> {
         *iter_link = skel.links.bpftop_iter;
         Ok(())
     })();
-    
+
     // Restore previous libbpf print function
     unsafe {
         libbpf_sys::libbpf_set_print(prev_print_fn);
     }
-    
+
     result
 }
 
@@ -496,30 +497,27 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
         })
         .collect::<Vec<_>>();
 
-    let mut items = vec![
+    let mut prog_info_rows = vec![
         Row::new(vec![Cell::from("Program ID"), Cell::from("Unknown")]),
         Row::new(vec![Cell::from("Program Type"), Cell::from("Unknown")]),
         Row::new(vec![Cell::from("Program Name"), Cell::from("Unknown")]),
     ];
-    let widths = [Constraint::Length(15), Constraint::Min(0)];
+    let mut attach_info_rows = vec![];
 
     if let Some(bpf_program) = app.graphs_bpf_program.lock().unwrap().clone() {
-        items = vec![
+        prog_info_rows = vec![
             Row::new(vec![
                 Cell::from("Program ID".bold()),
                 Cell::from(bpf_program.id.to_string()),
-            ])
-            .height(2),
+            ]),
             Row::new(vec![
                 Cell::from("Program Type".bold()),
                 Cell::from(bpf_program.bpf_type),
-            ])
-            .height(2),
+            ]),
             Row::new(vec![
                 Cell::from("Program Name".bold()),
                 Cell::from(bpf_program.name),
-            ])
-            .height(2),
+            ]),
             Row::new(vec![
                 Cell::from("PIDs".bold()),
                 Cell::from(
@@ -530,21 +528,37 @@ fn render_graphs(f: &mut Frame, app: &mut App, area: Rect) {
                         .collect::<Vec<String>>()
                         .join(", "),
                 ),
-            ])
-            .height(2),
+            ]),
         ];
+
+        let socket = &mut app.socket;
+        attach_info_rows.extend(render_prog_attachments(
+            bpf_program.id,
+            bpf_program.bpf_type,
+            socket,
+        ));
     }
 
-    let table = Table::new(items, widths)
-        .block(
-            Block::default()
-                .title(" Program Information ")
-                .padding(Padding::new(3, 0, 1, 0))
-                .borders(Borders::ALL),
-        )
-        .style(Style::default());
+    let info_block = Block::default()
+        .title(" Program Information ")
+        .padding(Padding::new(3, 0, 1, 0))
+        .borders(Borders::ALL);
+    let info_area = info_block.inner(sub_chunks[0][0]);
+    let info_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(prog_info_rows.len() as u16),
+            Constraint::Min(0),
+        ])
+        .split(info_area);
 
-    f.render_widget(table, sub_chunks[0][0]); // Top left
+    let prog_info = Table::new(prog_info_rows, [Constraint::Length(15), Constraint::Min(0)])
+        .style(Style::default());
+    let attach_info = List::new(attach_info_rows);
+
+    f.render_widget(info_block, sub_chunks[0][0]); // Top left
+    f.render_widget(prog_info, info_chunks[0]); // Top left - upper half
+    f.render_widget(attach_info, info_chunks[1]); // Top left - lower half
     f.render_widget(cpu_chart.clone(), sub_chunks[0][1]); // Top right
     f.render_widget(eps_chart, sub_chunks[1][0]); // Bottom left
     f.render_widget(runtime_chart, sub_chunks[1][1]); // Bottom right
