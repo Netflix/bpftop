@@ -1,6 +1,7 @@
 /**
  *
- *  Copyright 2024 Netflix, Inc.
+ *  Copyright 2024-2026 Netflix, Inc.
+ *  Copyright 2026-Present Jose Fernandez and bpftop contributors.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
