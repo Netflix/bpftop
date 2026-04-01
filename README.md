@@ -215,3 +215,7 @@ The logs include information about:
 - Kernel compatibility checks
 - BPF statistics enablement method used
 - Any errors or warnings encountered
+
+## Project History
+
+This repository was formerly maintained by Netflix. It is now an independent project maintained by Jose Fernandez. Netflix is no longer affiliated with this tool's development.
