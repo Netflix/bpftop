@@ -4,7 +4,7 @@ version = "0.7.1"
 edition = "2021"
 description = "Dynamic real-time view of running eBPF programs"
 license = "Apache-2.0"
-authors = ["Jose Fernandez <josef@netflix.com>"]
+authors = ["Jose Fernandez <me@jrfernandez.com>"]
 
 [build-dependencies]
 libbpf-cargo = "0.24.4"
