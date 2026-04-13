@@ -104,7 +104,9 @@ impl From<&BpfProgram> for Row<'_> {
             Cell::from(format_percent(bpf_program.cpu_time_percent())),
         ];
 
-        Row::new(cells).height(TABLE_ROW_HEIGHT).bottom_margin(TABLE_ROW_MARGIN)
+        Row::new(cells)
+            .height(TABLE_ROW_HEIGHT)
+            .bottom_margin(TABLE_ROW_MARGIN)
     }
 }
 
@@ -186,7 +188,10 @@ fn main() -> Result<()> {
     // load and attach pid_iter BPF program to get process information
     match load_pid_iter(&mut iter_link) {
         Ok(()) => info!("Successfully loaded pid_iter BPF program"),
-        Err(e) => info!("Failed to load pid_iter BPF program: {}, continuing without process information", e),
+        Err(e) => info!(
+            "Failed to load pid_iter BPF program: {}, continuing without process information",
+            e
+        ),
     }
 
     // capture panic to disable BPF stats via procfs
@@ -237,10 +242,8 @@ fn procfs_bpf_stats_is_enabled() -> Result<bool> {
 
 fn load_pid_iter(iter_link: &mut Option<libbpf_rs::Link>) -> Result<()> {
     // Temporarily suppress libbpf stderr output during loading attempt
-    let prev_print_fn = unsafe {
-        libbpf_sys::libbpf_set_print(None)
-    };
-    
+    let prev_print_fn = unsafe { libbpf_sys::libbpf_set_print(None) };
+
     let result = (|| -> Result<()> {
         let skel_builder = PidIterSkelBuilder::default();
         let mut open_object = MaybeUninit::uninit();
@@ -250,12 +253,12 @@ fn load_pid_iter(iter_link: &mut Option<libbpf_rs::Link>) -> Result<()> {
         *iter_link = skel.links.bpftop_iter;
         Ok(())
     })();
-    
+
     // Restore previous libbpf print function
     unsafe {
         libbpf_sys::libbpf_set_print(prev_print_fn);
     }
-    
+
     result
 }
 
