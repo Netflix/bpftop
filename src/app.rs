@@ -16,9 +16,10 @@
  *  limitations under the License.
  *
  */
-use crate::{bpf_program::{BpfProgram, Process}, helpers::program_type_to_string};
+use crate::{bpf_program::{BpfProgram, Process}, helpers::program_type_as_str};
 use circular_buffer::CircularBuffer;
 use libbpf_rs::{query::ProgInfoIter, Iter, Link};
+use netlink_sys::Socket;
 use ratatui::widgets::ScrollbarState;
 use ratatui::widgets::TableState;
 use std::{
@@ -48,6 +49,7 @@ pub struct App {
     pub graphs_bpf_program: Arc<Mutex<Option<BpfProgram>>>,
     sorted_column: Arc<Mutex<SortColumn>>,
     delay_seconds: u64,
+    pub socket: Option<Socket>,
 }
 
 pub struct PeriodMeasure {
@@ -146,6 +148,7 @@ impl App {
             graphs_bpf_program: Arc::new(Mutex::new(None)),
             sorted_column: Arc::new(Mutex::new(SortColumn::NoOrder)),
             delay_seconds,
+            socket: None,
         };
         // Default sort column is Total CPU % in descending order
         app.sort_column(SortColumn::Descending(6));
@@ -188,7 +191,7 @@ impl App {
                 let processes = pid_map.get(&prog.id).cloned().unwrap_or_default();
 
                 // Skip bpf program if it does not match filter
-                let bpf_type = program_type_to_string(prog.ty);
+                let bpf_type = program_type_as_str(&prog.ty);
                 if !filter_str.is_empty()
                     && !bpf_type.to_lowercase().contains(&filter_str)
                     && !prog_name.to_lowercase().contains(&filter_str)
@@ -298,6 +301,7 @@ impl App {
         self.max_eps = 0;
         self.max_runtime = 0;
         *self.graphs_bpf_program.lock().unwrap() = None;
+        self.socket = None;
     }
 
     pub fn selected_program(&self) -> Option<BpfProgram> {
@@ -460,7 +464,7 @@ mod tests {
         let mut app = App::new(1);
         let prog_1 = BpfProgram {
             id: 1,
-            bpf_type: "test".to_string(),
+            bpf_type: "test",
             name: "test".to_string(),
             prev_runtime_ns: 100,
             run_time_ns: 200,
@@ -473,7 +477,7 @@ mod tests {
 
         let prog_2 = BpfProgram {
             id: 2,
-            bpf_type: "test".to_string(),
+            bpf_type: "test",
             name: "test".to_string(),
             prev_runtime_ns: 100,
             run_time_ns: 200,
@@ -506,7 +510,6 @@ mod tests {
         app.next_program();
         assert_eq!(app.selected_program(), Some(prog_2.clone()), "expected prog_2; no wrap around");
         assert_eq!(app.vertical_scroll, 1, "expected scroll 1, got: {}", app.vertical_scroll);
-
     }
 
     #[test]
@@ -515,7 +518,7 @@ mod tests {
 
         // Initially no item is selected
         assert_eq!(app.selected_program(), None);
-        
+
         // Initially ScrollbarState is 0
         assert_eq!(app.vertical_scroll_state, ScrollbarState::new(0), "unexpected ScrollbarState");
         assert_eq!(app.vertical_scroll, 0, "expected 0 vertical_scroll, got: {}", app.vertical_scroll);
@@ -533,7 +536,7 @@ mod tests {
         let mut app = App::new(1);
         let prog_1 = BpfProgram {
             id: 1,
-            bpf_type: "test".to_string(),
+            bpf_type: "test",
             name: "test".to_string(),
             prev_runtime_ns: 100,
             run_time_ns: 200,
@@ -546,7 +549,7 @@ mod tests {
 
         let prog_2 = BpfProgram {
             id: 2,
-            bpf_type: "test".to_string(),
+            bpf_type: "test",
             name: "test".to_string(),
             prev_runtime_ns: 100,
             run_time_ns: 200,
