@@ -41,13 +41,13 @@ should check these in addition to general code quality.
 - Test that the UI does not panic on zero-length data (no BPF programs
   loaded, empty filter results).
 
-## Cross-compilation
+## Multi-architecture
 
 - CI builds for both `x86_64-unknown-linux-gnu` and
   `aarch64-unknown-linux-gnu`. Do not add platform-specific code without
   gating it behind `#[cfg(target_arch = ...)]`.
 - New dependencies must support both targets. Check before adding.
-- Build changes must work with `cross`, not just `cargo`.
+- Build changes must work with `cargo` on both x86_64 and aarch64.
 
 ## Dependencies
 
