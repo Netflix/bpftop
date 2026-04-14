@@ -1,4 +1,4 @@
 .PHONY: build
 
 build:
-	cross build --release
+	cargo build --release

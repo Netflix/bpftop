@@ -8,69 +8,65 @@ on:
   pull_request:
     branches: [ "main" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  install_dependencies:
-    runs-on: ubuntu-latest
-    steps:
-
-    - name: Install cross
-      run: cargo install cross --git https://github.com/cross-rs/cross
-
-    - name: Cache dependencies
-      uses: actions/cache@v5
-      with:
-        path: ~/.cargo/bin
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-
-
   build_and_test:
-    needs: install_dependencies
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
     steps:
     - uses: actions/checkout@v6
 
-    - name: Restore dependencies from cache
-      uses: actions/cache@v5
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y clang libelf-dev zlib1g-dev
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Rust artifacts
+      uses: Swatinem/rust-cache@v2
       with:
-        path: ~/.cargo/bin
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-
+        key: ${{ matrix.target }}
 
     - name: Test
-      run: cross test --target ${{ matrix.target }}
+      run: cargo test
 
     - name: Clippy
-      run: cross clippy --target ${{ matrix.target }} --all --tests --all-features --no-deps
+      run: cargo clippy --all --tests --all-features --no-deps
 
     - name: Build
-      run: cross build --target ${{ matrix.target }} --release
+      if: github.event_name != 'pull_request'
+      run: cargo build --release
 
     - name: Rename binary
-      run: mv target/${{ matrix.target }}/release/bpftop target/${{ matrix.target }}/release/bpftop-${{ matrix.target }}
+      if: github.event_name != 'pull_request'
+      run: mv target/release/bpftop target/release/bpftop-${{ matrix.target }}
 
     - name: Upload artifact
+      if: github.event_name != 'pull_request'
       uses: actions/upload-artifact@v7
       with:
         name: bpftop-${{ matrix.target }}
-        path: target/${{ matrix.target }}/release/bpftop-${{ matrix.target }}
+        path: target/release/bpftop-${{ matrix.target }}
         if-no-files-found: error
 
   create_release:
     needs: build_and_test
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
 
     steps:
     - name: Download all artifacts

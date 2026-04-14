@@ -10,32 +10,17 @@ bpftop is a dynamic real-time view of running eBPF programs written in Rust. It 
 
 ### Building
 ```bash
-# Build for x86_64 (default)
-cross build --release
-
-# Build for ARM64
-cross build --target=aarch64-unknown-linux-gnu --release
-
-# Using make
-make build
+cargo build --release
 ```
 
 ### Testing
 ```bash
-# Run tests for x86_64
-cross test
-
-# Run tests for specific target
-cross test --target=aarch64-unknown-linux-gnu
+cargo test
 ```
 
 ### Code Quality
 ```bash
-# Run clippy linter
-cross clippy --all --tests --all-features --no-deps
-
-# Run clippy for specific target
-cross clippy --target=aarch64-unknown-linux-gnu --all --tests --all-features --no-deps
+cargo clippy --all --tests --all-features --no-deps
 ```
 
 ### Running
@@ -76,7 +61,7 @@ The project uses a build script (`build.rs`) that:
 ### Important Notes
 
 - Requires sudo privileges to run due to BPF syscall requirements
-- Uses `cross` for cross-compilation to support multiple architectures
+- CI uses native GitHub ARM64 runners for aarch64 builds
 - BPF statistics are only collected while the application is running to minimize overhead
 - The UI updates every second with new statistics
 
@@ -84,7 +69,7 @@ The project uses a build script (`build.rs`) that:
 
 ### Rust Style
 - Follow standard `rustfmt` formatting. Run `cargo fmt` before committing.
-- All clippy warnings must pass: `cross clippy --all --tests --all-features --no-deps`
+- All clippy warnings must pass: `cargo clippy --all --tests --all-features --no-deps`
 - Prefer `anyhow::Result` for error propagation. Use `.context()` for meaningful error messages.
 - Every `unsafe` block must have a `// SAFETY:` comment explaining why it is sound.
 - Keep dependencies minimal. This is a single-binary tool — avoid pulling in large frameworks.
@@ -101,4 +86,4 @@ The project uses a build script (`build.rs`) that:
 
 ### Pull Requests
 - PRs must pass CI on both x86_64 and aarch64 before merging.
-- Run `cross clippy` and `cross test` locally to catch issues early.
+- Run `cargo clippy` and `cargo test` locally to catch issues early.

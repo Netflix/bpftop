@@ -36,4 +36,4 @@ jobs:
         uses: anthropics/claude-code-action@1c8b699d43e9bfed42b48ef15da85d89bab70960 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: '--model claude-opus-4-6 --allowedTools "Bash(cross test:*),Bash(cross clippy:*),Bash(cross build:*),Bash(cargo fmt:*),Bash(git:*),Bash(gh:*)"'
+          claude_args: '--model claude-opus-4-6 --allowedTools "Bash(cargo test:*),Bash(cargo clippy:*),Bash(cargo build:*),Bash(cargo fmt:*),Bash(git:*),Bash(gh:*)"'
