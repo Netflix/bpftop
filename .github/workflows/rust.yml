@@ -39,6 +39,9 @@ jobs:
       with:
         key: ${{ matrix.target }}
 
+    - name: Format
+      run: cargo fmt --all -- --check
+
     - name: Test
       run: cargo test
 
