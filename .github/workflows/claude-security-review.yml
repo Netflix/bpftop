@@ -29,3 +29,4 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: "--model claude-opus-4-6"
           prompt: '/security-review This is a Rust eBPF tool that runs as root. Focus on unsafe blocks, BPF verifier compatibility, privilege handling, and FFI memory safety at the libbpf-rs boundary.'
+          allowed_bots: "dependabot[bot]"
