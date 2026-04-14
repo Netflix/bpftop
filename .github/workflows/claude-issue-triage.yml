@@ -1,0 +1,49 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+
+      - name: Triage issue
+        uses: anthropics/claude-code-action@1c8b699d43e9bfed42b48ef15da85d89bab70960 # v1
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--model claude-opus-4-6 --allowedTools "Bash(scripts/triage-issue.sh:*)"'
+          allowed_non_write_users: "*"
+          prompt: |
+            Triage issue #${{ github.event.issue.number }} using ONLY the
+            scripts/triage-issue.sh wrapper. Do not use any other tools.
+
+            Available commands (ISSUE_NUMBER is already set):
+              scripts/triage-issue.sh get                — read the issue
+              scripts/triage-issue.sh search "<query>"   — find duplicates
+              scripts/triage-issue.sh add-label <label>  — apply a label
+              scripts/triage-issue.sh comment "<msg>"    — comment (duplicates only)
+
+            Steps:
+            1. Run `scripts/triage-issue.sh get` to read the issue.
+            2. Run `scripts/triage-issue.sh search "<keywords>"` to check
+               for duplicates. If you find a clear duplicate, run
+               `scripts/triage-issue.sh comment "Duplicate of #<N>"` and
+               `scripts/triage-issue.sh add-label duplicate`, then stop.
+            3. Apply one or more labels: bug, enhancement, question, bpf,
+               tui, build, docs.
+            4. Do not comment unless marking a duplicate.
+

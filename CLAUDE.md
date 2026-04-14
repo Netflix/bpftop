@@ -79,3 +79,26 @@ The project uses a build script (`build.rs`) that:
 - Uses `cross` for cross-compilation to support multiple architectures
 - BPF statistics are only collected while the application is running to minimize overhead
 - The UI updates every second with new statistics
+
+## Conventions
+
+### Rust Style
+- Follow standard `rustfmt` formatting. Run `cargo fmt` before committing.
+- All clippy warnings must pass: `cross clippy --all --tests --all-features --no-deps`
+- Prefer `anyhow::Result` for error propagation. Use `.context()` for meaningful error messages.
+- Every `unsafe` block must have a `// SAFETY:` comment explaining why it is sound.
+- Keep dependencies minimal. This is a single-binary tool — avoid pulling in large frameworks.
+
+### BPF Code
+- BPF C code lives in `src/bpf/`. Changes here require rebuilding via `build.rs`.
+- BPF programs must pass the kernel verifier. Keep helpers simple and bounded.
+- Do not modify `pid_iter.skel.rs` directly — it is generated.
+
+### Commits
+- Use conventional commit format: `type: lowercase description`
+- Types: `feat`, `fix`, `chore`, `ci`, `docs`, `refactor`, `test`
+- Write prose commit bodies explaining why, not what. No bullet lists.
+
+### Pull Requests
+- PRs must pass CI on both x86_64 and aarch64 before merging.
+- Run `cross clippy` and `cross test` locally to catch issues early.
