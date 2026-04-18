@@ -67,7 +67,7 @@ jobs:
             };
 
       - name: Diagnose failure
-        uses: anthropics/claude-code-action@1c8b699d43e9bfed42b48ef15da85d89bab70960 # v1
+        uses: anthropics/claude-code-action@0d2971c794049856e777f4e8bb5a81623ec632d3 # v1.0.100
         env:
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
         with:
