@@ -33,6 +33,7 @@
             pkg-config
             llvmPackages.clang
             gnumake
+            shellcheck
 
             # Libraries
             elfutils
